@@ -2,11 +2,16 @@ import { useEffect } from 'react'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
-// import type { Atom } from 'jotai/vanilla'
+import type { Atom, Getter, PrimitiveAtom, Setter } from 'jotai/vanilla'
 import assert from 'minimalistic-assert'
-import { atomEffect } from '../src/atomEffect'
-// import type { InternalState } from '../src/atomEffect'
-import { defer, toggle } from '../src/utils'
+import {
+  atomEffect,
+  createInternalState,
+  defer,
+  makeAtomEffect,
+  toggle,
+} from '../src/atomEffect'
+import type { InternalState } from '../src/atomEffect'
 
 it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)
@@ -27,7 +32,8 @@ it('should run the effect on mount and cleanup on unmount once', async () => {
     return useAtomValue(effectAtom)
   }
   const { result, rerender, unmount } = renderHook(useTest)
-  await waitFor(() => assert(hasRun && hasMounted))
+  await waitFor(() => assert(hasRun))
+  await waitFor(() => assert(hasMounted))
   // effect does not return a value
   expect(result.current).toBe(undefined)
 
@@ -112,7 +118,6 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
   expect(effect.unmount).toBe(3)
 })
 
-/*
 it('should manage internalState correctly during effects', async () => {
   expect.assertions(6)
   const countAtom = atom(0)
@@ -123,10 +128,10 @@ it('should manage internalState correctly during effects', async () => {
   atom2.debugLabel = 'atom2'
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const cleanup = () => {}
-  const effectFn: EffectFn = async (get, set) => {
+  const effectFn = async (get: Getter, set: Setter) => {
     // this should add atom1 to the dependencyMap
     const value = get(atom1)
     // internal state is not null on first run of effect
@@ -181,12 +186,12 @@ it('should update the dependencyMap correctly as values change', async () => {
   const [booleanAtom, atom1, atom2, atom3, atom4, atom5] = makeAtoms(6)
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const sides = { top: 0, bottom: 0 }
   let timeoutRan = false
   let callbackEvaluated = false
-  const effectFn: EffectFn = async (get) => {
+  const effectFn = async (get: Getter) => {
     const value = get(booleanAtom)
     if (value) {
       get(atom1)
@@ -271,12 +276,12 @@ it('should update the dependencyMap correctly for asynchronous dependencies', as
   atom3.debugLabel = 'atom3'
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const deferred = new Deferred()
   let deferredResolved = false
   let timeoutRan = false
-  const effectFn: EffectFn = async (get) => {
+  const effectFn = async (get: Getter) => {
     get(atom1)
     expect(internalState.dependencyMap.has(atom1)).toBeTruthy()
     expect(internalState.dependencyMap.has(atom2)).toBeFalsy()
@@ -300,7 +305,6 @@ it('should update the dependencyMap correctly for asynchronous dependencies', as
   await act(async () => deferred.resolve())
   await waitFor(() => assert(deferredResolved && timeoutRan))
 })
-*/
 
 it('should not cause infinite loops when effect updates the watched atom', async () => {
   expect.assertions(2)
@@ -675,32 +679,32 @@ function increment(count: number) {
   return count + 1
 }
 
-// function delay(ms: number) {
-//   return new Promise((resolve) => {
-//     setTimeout(resolve, ms)
-//   })
-// }
+function delay(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
 
-// class Deferred<T = void> {
-//   promise: Promise<T>
+class Deferred<T = void> {
+  promise: Promise<T>
 
-//   resolve!: (value: T | PromiseLike<T>) => void
+  resolve!: (value: T | PromiseLike<T>) => void
 
-//   reject!: (reason?: unknown) => void
+  reject!: (reason?: unknown) => void
 
-//   constructor() {
-//     this.promise = new Promise<T>((resolve, reject) => {
-//       this.resolve = resolve
-//       this.reject = reject
-//     })
-//   }
-// }
+  constructor() {
+    this.promise = new Promise<T>((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
+  }
+}
 
-// function evaluateDependencyMap(
-//   atomMembershipExpectations: [Atom<boolean>, boolean][],
-//   internalState: InternalState
-// ) {
-//   return atomMembershipExpectations.every(
-//     ([atom, hasAtom]) => internalState.dependencyMap.has(atom) === hasAtom
-//   )
-// }
+function evaluateDependencyMap(
+  atomMembershipExpectations: [Atom<boolean>, boolean][],
+  internalState: InternalState
+) {
+  return atomMembershipExpectations.every(
+    ([atom, hasAtom]) => internalState.dependencyMap.has(atom) === hasAtom
+  )
+}

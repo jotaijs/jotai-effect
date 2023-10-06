@@ -3,8 +3,8 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
 import assert from 'minimalistic-assert'
+import { defer, toggle } from '../src/atomEffect'
 import { atomEffect } from '../src/atomEffect2'
-import { defer, toggle } from '../src/utils'
 
 it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)

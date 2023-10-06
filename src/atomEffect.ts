@@ -1,6 +1,5 @@
 import type { Atom, Getter, Setter, WritableAtom } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
-import { defer, toggle } from './utils'
 
 type CleanupFn = () => PromiseOrValue<void>
 type PromiseOrValue<T> = Promise<T> | T
@@ -8,7 +7,6 @@ type PromiseOrValue<T> = Promise<T> | T
 // internal state now exists for the lifetime of the atomEffect
 export type InternalState = {
   // defines whether the effect is mounted, was previously internalState === null
-  mounted: boolean
   inProgress: number
   cleanup: CleanupFn | void
   dependencyMap: Map<Atom<unknown>, unknown>
@@ -17,24 +15,26 @@ export type InternalState = {
 export function atomEffect(
   effectFn: (get: Getter, set: Setter) => PromiseOrValue<void | CleanupFn>
 ) {
-  const refAtom = atom<InternalState>({
-    mounted: false,
-    inProgress: 0,
-    cleanup: undefined,
-    dependencyMap: new Map<Atom<unknown>, unknown>(),
-  })
-  const initAtom = atom(null, (get, _set, mounted: boolean) => {
+  const internalStateAtom = atom(createInternalState)
+  return makeAtomEffect(effectFn, internalStateAtom)
+}
+
+export function makeAtomEffect(
+  effectFn: (get: Getter, set: Setter) => PromiseOrValue<void | CleanupFn>,
+  refAtom: Atom<InternalState>
+) {
+  const mountedAtom = atom(false, (get, set, mounted: boolean | symbol) => {
     const ref = get(refAtom)
     if (mounted) {
-      ref.mounted = true
+      set(mountedAtom, true) // re-render to trigger effect on mount
     } else {
       ref.cleanup?.() // do not await
-      ref.mounted = false
       ref.dependencyMap.clear() // we should clear the dependencyMap on unmount
       ref.cleanup = undefined
+      set(mountedAtom, false) // don't need to re-render on unmount, but we need the value to change for onMount
     }
   })
-  initAtom.onMount = (init) => {
+  mountedAtom.onMount = (init) => {
     init(true)
     return () => init(false)
   }
@@ -113,15 +113,18 @@ export function atomEffect(
 
   const effectAtom = atom(
     async (get, { setSelf }) => {
-      const ref = get(refAtom)
       ensureWatchDependencies(get) // ensure all watched atoms are captured by Jotai's internal dependency map
-      if (!ref.mounted) {
+      if (!get(mountedAtom)) {
         return
       }
+      const ref = get(refAtom)
       if (ref.inProgress) {
+        // prevent infinite loop
         return
       }
-      if (!isFirstRun(get) && !hasChanged(get)) return // no changes
+      if (!isFirstRun(get) && !hasChanged(get)) {
+        return
+      }
       ref?.dependencyMap.clear()
       const shouldCollectDeps = { value: true }
       const getter = makeGetter(get, shouldCollectDeps)
@@ -130,7 +133,7 @@ export function atomEffect(
       const setter = makeSetter(setSelf as Setter, () => get(refAtom))
       await ref.cleanup?.()
       ref.cleanup = await effectFn(getter, setter)
-      shouldCollectDeps.value = false
+      shouldCollectDeps.value = false // stop collecting deps after effectFn is run
       rerunToEvaluate(setter) // rerun to ensure all dependencies are captured
     },
     (
@@ -142,7 +145,26 @@ export function atomEffect(
   )
 
   return atom((get) => {
-    get(initAtom)
+    get(mountedAtom)
     get(effectAtom)
   })
+}
+
+/**
+ * delays execution until next microtask
+ */
+export function defer(fn?: () => PromiseOrValue<void>) {
+  return Promise.resolve().then(fn)
+}
+
+export function toggle(value: boolean) {
+  return !value
+}
+
+export function createInternalState(): InternalState {
+  return {
+    inProgress: 0,
+    cleanup: undefined,
+    dependencyMap: new Map<Atom<unknown>, unknown>(),
+  }
 }
