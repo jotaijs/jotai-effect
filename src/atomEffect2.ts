@@ -12,12 +12,12 @@ export function atomEffect(
     rerun: boolean
     inProgress: number
     cleanup: CleanupFn | void
-  }>({
+  }>(() => ({
     mounted: false,
     rerun: false,
     inProgress: 0,
     cleanup: undefined,
-  })
+  }))
   const initAtom = atom(null, (get, _set, mounted: boolean) => {
     const ref = get(refAtom)
     if (mounted) {
