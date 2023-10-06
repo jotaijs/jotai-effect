@@ -2,16 +2,16 @@ import { useEffect } from 'react'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
-import type { Atom, PrimitiveAtom } from 'jotai/vanilla'
+import type { Atom, Getter, PrimitiveAtom, Setter } from 'jotai/vanilla'
 import assert from 'minimalistic-assert'
 import {
   atomEffect,
   createInternalState,
+  defer,
   makeAtomEffect,
-  makeInternalStateAtom,
+  toggle,
 } from '../src/atomEffect'
-import { EffectFn, InternalState } from '../src/types'
-import { defer, toggle } from '../src/utils'
+import type { InternalState } from '../src/atomEffect'
 
 it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)
@@ -127,10 +127,10 @@ it('should manage internalState correctly during effects', async () => {
   atom2.debugLabel = 'atom2'
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const cleanup = () => {}
-  const effectFn: EffectFn = async (get, set) => {
+  const effectFn = async (get: Getter, set: Setter) => {
     // this should add atom1 to the dependencyMap
     const value = get(atom1)
     // internal state is not null on first run of effect
@@ -185,12 +185,12 @@ it('should update the dependencyMap correctly as values change', async () => {
   const [booleanAtom, atom1, atom2, atom3, atom4, atom5] = makeAtoms(6)
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const sides = { top: 0, bottom: 0 }
   let timeoutRan = false
   let callbackEvaluated = false
-  const effectFn: EffectFn = async (get) => {
+  const effectFn = async (get: Getter) => {
     const value = get(booleanAtom)
     if (value) {
       get(atom1)
@@ -275,12 +275,12 @@ it('should update the dependencyMap correctly for asynchronous dependencies', as
   atom3.debugLabel = 'atom3'
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const deferred = new Deferred()
   let deferredResolved = false
   let timeoutRan = false
-  const effectFn: EffectFn = async (get) => {
+  const effectFn = async (get: Getter) => {
     get(atom1)
     expect(internalState.dependencyMap.has(atom1)).toBeTruthy()
     expect(internalState.dependencyMap.has(atom2)).toBeFalsy()
