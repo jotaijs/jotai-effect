@@ -30,7 +30,7 @@ module.exports = {
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
     alias: {
-      'jotai-valtio': `${__dirname}/src`,
+      'jotai-effect': `${__dirname}/src`,
     },
   },
   devServer: {
