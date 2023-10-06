@@ -32,8 +32,7 @@ it('should run the effect on mount and cleanup on unmount once', async () => {
     return useAtomValue(effectAtom)
   }
   const { result, rerender, unmount } = renderHook(useTest)
-  await waitFor(() => assert(hasRun))
-  await waitFor(() => assert(hasMounted))
+  await waitFor(() => assert(hasRun && hasMounted))
   // effect does not return a value
   expect(result.current).toBe(undefined)
 
