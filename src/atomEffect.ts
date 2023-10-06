@@ -1,5 +1,5 @@
-import type { Atom, Getter, Setter, WritableAtom } from 'jotai'
-import { atom } from 'jotai'
+import type { Atom, Getter, Setter, WritableAtom } from 'jotai/vanilla'
+import { atom } from 'jotai/vanilla'
 import type {
   CleanupFn,
   EffectFn,
@@ -92,8 +92,8 @@ export function makeAtomEffect(
   }
 
   const rerunAtom = atom(true)
-  rerunAtom.debugLabel = 'rerunAtom'
   if (process.env.NODE_ENV !== 'production') {
+    rerunAtom.debugLabel = 'rerunAtom'
     rerunAtom.debugPrivate = true
   }
 
@@ -141,7 +141,8 @@ export function makeInternalStateAtom(
     if (isInit) {
       set(internalStateAtom, internalStateFactory())
     } else {
-      ;(async () => get(internalStateAtom)?.cleanup?.())()
+      const internalState = get(internalStateAtom)
+      internalState?.cleanup?.()
       set(internalStateAtom, null)
     }
   })
@@ -149,12 +150,10 @@ export function makeInternalStateAtom(
     init(true)
     return () => init(false)
   }
-  internalStateAtom.debugLabel = 'internalStateAtom'
-
   if (process.env.NODE_ENV !== 'production') {
+    internalStateAtom.debugLabel = 'internalStateAtom'
     internalStateAtom.debugPrivate = true
   }
-
   return internalStateAtom
 }
 

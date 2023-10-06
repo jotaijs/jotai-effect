@@ -1,4 +1,4 @@
-import type { Atom, Getter, Setter, WritableAtom } from 'jotai'
+import type { Atom, Getter, Setter, WritableAtom } from 'jotai/vanilla'
 
 export type CleanupFn = () => PromiseOrValue<void>
 
