@@ -2,8 +2,6 @@ import React from 'react'
 import { useAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
 import type { Getter, Setter } from 'jotai/vanilla'
-// @ts-expect-error 'jotai-effect' has not yet been published
-// eslint-disable-next-line import/no-unresolved
 import { atomEffect } from 'jotai-effect'
 
 const playPauseAtom = atom(false)

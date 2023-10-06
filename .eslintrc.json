@@ -100,7 +100,7 @@
       "alias": {
         "extensions": [".js", ".jsx", ".ts", ".tsx", ".json"],
         "map": [
-          ["^jotai-valtio$", "./src/index.ts"]
+          ["^jotai-effect$", "./src/index.ts"]
         ]
       }
     }
