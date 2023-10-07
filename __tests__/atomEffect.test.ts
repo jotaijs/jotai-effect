@@ -166,7 +166,7 @@ it('should update the dependencyMap correctly as values change', async () => {
   type AtomsArray<
     T,
     N extends number,
-    Arr extends T[] = []
+    Arr extends T[] = [],
   > = Arr['length'] extends 32
     ? never
     : N extends Arr['length']

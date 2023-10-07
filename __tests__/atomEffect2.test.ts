@@ -448,7 +448,7 @@ describe('should correctly process synchronous updates to the same atom', () => 
   )
 })
 
-it.only('should not batch effect setStates', async () => {
+it('should not batch effect setStates', async () => {
   expect.assertions(4)
   const valueAtom = atom(0)
   const runCount = { current: 0 }
