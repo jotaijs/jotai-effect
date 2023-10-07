@@ -9,9 +9,11 @@ export function atomEffect(
 ) {
   const refAtom = atom<{
     mounted: boolean
+    inProgress: boolean
     cleanup: CleanupFn | void
   }>(() => ({
     mounted: false,
+    inProgress: false,
     cleanup: undefined,
   }))
 
@@ -40,8 +42,13 @@ export function atomEffect(
       if (!ref.mounted) {
         return
       }
+      if (ref.inProgress) {
+        throw new Error('infinite loop detected')
+      }
       await ref.cleanup?.()
+      ref.inProgress = true
       ref.cleanup = await effectFn(get, setSelf as Setter)
+      ref.inProgress = false
     },
     (
       _get,
