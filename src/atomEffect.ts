@@ -9,7 +9,7 @@ export function atomEffect(
 ) {
   const refAtom = atom(() => ({
     mounted: false,
-    inProgress: false,
+    inProgress: 0,
     cleanup: undefined as void | CleanupFn,
   }))
 
@@ -35,16 +35,13 @@ export function atomEffect(
     async (get, { setSelf }) => {
       get(refreshAtom)
       const ref = get(refAtom)
-      if (!ref.mounted) {
+      if (!ref.mounted || ref.inProgress) {
         return
       }
-      if (ref.inProgress) {
-        throw new Error('infinite loop detected')
-      }
-      ref.inProgress = true
+      ++ref.inProgress
       await ref.cleanup?.()
       ref.cleanup = await effectFn(get, setSelf as Setter)
-      ref.inProgress = false
+      --ref.inProgress
     },
     (
       _get,
