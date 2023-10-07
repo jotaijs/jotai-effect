@@ -48,9 +48,12 @@ export function atomEffect(
         return
       }
       ++ref.inProgress
-      await ref.cleanup?.()
-      ref.cleanup = await effectFn(get, setSelf as Setter)
-      --ref.inProgress
+      try {
+        await ref.cleanup?.()
+        ref.cleanup = await effectFn(get, setSelf as Setter)
+      } finally {
+        --ref.inProgress
+      }
     },
     (
       _get,
