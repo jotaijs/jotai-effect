@@ -138,25 +138,23 @@ it('should not cause infinite loops when effect updates the watched atom', async
   expect(runCount).toBe(2)
 })
 
-it.skip('should allow asynchronous `get` and `set` in the effect', async () => {
+it('should allow asynchronous `get` and `set` in the effect', async () => {
   expect.assertions(5)
   const valueAtom = atom(0)
   let runCount = 0
 
   const effectAtom = atomEffect(async (get, set) => {
     runCount++
-    await act(async () => {
-      await defer()
-      const value = get(valueAtom)
-      if (runCount === 1) {
-        expect(value).toBe(0)
-      } else if (runCount === 2) {
-        expect(value).toBe(2)
-      } else {
-        throw new Error('effect ran too many times')
-      }
-      set(valueAtom, increment)
-    })
+    await defer()
+    const value = get(valueAtom)
+    if (runCount === 1) {
+      expect(value).toBe(0)
+    } else if (runCount === 2) {
+      expect(value).toBe(2)
+    } else {
+      throw new Error('effect ran too many times')
+    }
+    set(valueAtom, increment)
   })
 
   function useTest() {
