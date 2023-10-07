@@ -12,8 +12,14 @@ export function atomEffect(
     inProgress: 0,
     cleanup: undefined as void | CleanupFn,
   }))
+  if (process.env.NODE_ENV !== 'production') {
+    refAtom.debugPrivate = true
+  }
 
   const refreshAtom = atom(0)
+  if (process.env.NODE_ENV !== 'production') {
+    refreshAtom.debugPrivate = true
+  }
 
   const initAtom = atom(null, (get, set, mounted: boolean) => {
     const ref = get(refAtom)
@@ -29,6 +35,9 @@ export function atomEffect(
   initAtom.onMount = (init) => {
     init(true)
     return () => init(false)
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    initAtom.debugPrivate = true
   }
 
   const effectAtom = atom(
@@ -50,6 +59,9 @@ export function atomEffect(
       ...args: unknown[]
     ) => set(a, ...args)
   )
+  if (process.env.NODE_ENV !== 'production') {
+    effectAtom.debugPrivate = true
+  }
 
   return atom((get) => {
     get(initAtom)
