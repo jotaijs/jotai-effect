@@ -9,24 +9,25 @@ export function atomEffect(
 ) {
   const refAtom = atom<{
     mounted: boolean
-    rerun: boolean
     inProgress: number
     cleanup: CleanupFn | void
   }>(() => ({
     mounted: false,
-    rerun: false,
     inProgress: 0,
     cleanup: undefined,
   }))
-  const initAtom = atom(null, (get, _set, mounted: boolean) => {
+
+  const refreshAtom = atom(0)
+
+  const initAtom = atom(null, (get, set, mounted: boolean) => {
     const ref = get(refAtom)
     if (mounted) {
       ref.mounted = true
+      set(refreshAtom, (c) => c + 1)
     } else {
       ref.cleanup?.() // do not await
-      ref.mounted = false
-      ref.rerun = false
       ref.cleanup = undefined
+      ref.mounted = false
     }
   })
   initAtom.onMount = (init) => {
@@ -36,29 +37,27 @@ export function atomEffect(
 
   const effectAtom = atom(
     async (get, { setSelf }) => {
+      get(refreshAtom)
       const ref = get(refAtom)
-      if (!ref.mounted) {
+      if (!ref.mounted || ref.inProgress) {
         return
       }
-      if (ref.inProgress) {
-        ref.rerun = true
-        return
-      }
-      do {
-        ref.rerun = false
-        await ref.cleanup?.()
-        ref.inProgress++
-        const cleanup = await effectFn(get, setSelf as Setter)
-        ref.inProgress--
-        ref.cleanup = cleanup
-      } while (ref.rerun)
+      await ref.cleanup?.()
+      const cleanup = await effectFn(get, setSelf as Setter)
+      ref.cleanup = cleanup
     },
     (
-      _get,
+      get,
       set,
       a: WritableAtom<unknown, unknown[], unknown>,
       ...args: unknown[]
-    ) => set(a, ...args)
+    ) => {
+      const ref = get(refAtom)
+      ref.inProgress++
+      const result = set(a, ...args)
+      ref.inProgress--
+      return result
+    }
   )
 
   return atom((get) => {
