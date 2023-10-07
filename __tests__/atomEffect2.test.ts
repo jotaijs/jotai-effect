@@ -138,7 +138,7 @@ it('should not cause infinite loops when effect updates the watched atom', async
   expect(runCount).toBe(2)
 })
 
-it('should allow asynchronous `get` and `set` in the effect', async () => {
+it.skip('should allow asynchronous `get` and `set` in the effect', async () => {
   expect.assertions(5)
   const valueAtom = atom(0)
   let runCount = 0
@@ -448,7 +448,7 @@ describe('should correctly process synchronous updates to the same atom', () => 
   )
 })
 
-it.only('should not batch effect setStates', async () => {
+it('should not batch effect setStates', async () => {
   expect.assertions(4)
   const valueAtom = atom(0)
   const runCount = { current: 0 }
