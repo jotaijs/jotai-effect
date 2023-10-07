@@ -59,8 +59,8 @@ devDependencies:
     specifier: ^29.4.1
     version: 29.4.1
   jotai:
-    specifier: ^2.0.3
-    version: 2.0.3(react@18.2.0)
+    specifier: ^2.4.3
+    version: 2.4.3(@types/react@18.0.27)(react@18.2.0)
   microbundle:
     specifier: ^0.15.1
     version: 0.15.1
@@ -5718,15 +5718,19 @@ packages:
       - ts-node
     dev: true
 
-  /jotai@2.0.3(react@18.2.0):
-    resolution: {integrity: sha512-MMjhSPAL3RoeZD9WbObufRT2quThEAEknHHridf2ma8Ml7ZVQmUiHk0ssdbR3F0h3kcwhYqSGJ59OjhPge7RRg==}
+  /jotai@2.4.3(@types/react@18.0.27)(react@18.2.0):
+    resolution: {integrity: sha512-CSAHX9LqWG5WCrU8OgBoZbBJ+Bo9rQU0mPusEF4e0CZ/SNFgurG26vb3UpgvCSJZgYVcUQNiUBM5q86PA8rstQ==}
     engines: {node: '>=12.20.0'}
     peerDependencies:
+      '@types/react': '>=17.0.0'
       react: '>=17.0.0'
     peerDependenciesMeta:
+      '@types/react':
+        optional: true
       react:
         optional: true
     dependencies:
+      '@types/react': 18.0.27
       react: 18.2.0
     dev: true
 
