@@ -7,14 +7,10 @@ type CleanupFn = () => PromiseOrValue<void>
 export function atomEffect(
   effectFn: (get: Getter, set: Setter) => PromiseOrValue<void | CleanupFn>
 ) {
-  const refAtom = atom<{
-    mounted: boolean
-    inProgress: boolean
-    cleanup: CleanupFn | void
-  }>(() => ({
+  const refAtom = atom(() => ({
     mounted: false,
     inProgress: false,
-    cleanup: undefined,
+    cleanup: undefined as void | CleanupFn,
   }))
 
   const refreshAtom = atom(0)
