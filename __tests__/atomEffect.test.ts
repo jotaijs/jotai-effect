@@ -3,7 +3,6 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
 import type { Atom, Getter, PrimitiveAtom, Setter } from 'jotai/vanilla'
-import assert from 'minimalistic-assert'
 import { atomEffect } from '../src/atomEffect'
 
 // just for skipped tests
@@ -243,7 +242,7 @@ it.skip('should update the dependencyMap correctly as values change', async () =
       internalState
     )
   ).toBeTruthy()
-  await act(async () => setBoolean(toggle))
+  await act(async () => setBoolean((x) => !x))
   await waitFor(() => assert(sides.bottom === 1 && callbackEvaluated))
   expect(
     evaluateDependencyMap(
@@ -339,7 +338,7 @@ it('should allow asynchronous `get` and `set` in the effect', async () => {
 
   const effectAtom = atomEffect(async (get, set) => {
     runCount++
-    await defer()
+    await Promise.resolve()
     const value = get(valueAtom)
     if (runCount === 1) {
       expect(value).toBe(0)
@@ -381,7 +380,7 @@ it('should allow asynchronous `get` and `set` in the effect cleanup', async () =
     get(valueAtom)
     return async () => {
       cleanupRunCount++
-      await defer()
+      await Promise.resolve()
       const cleanupValue = get(cleanupValueAtom)
       if (cleanupRunCount === 1) {
         expect(cleanupValue).toBe(0)
@@ -665,7 +664,7 @@ it('should not batch effect setStates', async () => {
   expect(valueResult.current).toBe(0)
   expect(runCount.current).toBe(1)
 
-  await act(async () => setTrigger(toggle))
+  await act(async () => setTrigger((x) => !x))
   expect(valueResult.current).toBe(2)
   expect(runCount.current).toBe(3) // <--- not batched (we would expect runCount to be 2 if batched)
 })
@@ -704,10 +703,8 @@ function evaluateDependencyMap(
   )
 }
 
-function defer() {
-  return Promise.resolve()
-}
-
-function toggle(value: boolean) {
-  return !value
+function assert(value: boolean, message?: string): asserts value {
+  if (!value) {
+    throw new Error(message ?? 'assertion failed')
+  }
 }

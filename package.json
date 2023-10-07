@@ -48,7 +48,6 @@
   "devDependencies": {
     "@testing-library/react": "^14.0.0",
     "@types/jest": "^29.5.5",
-    "@types/minimalistic-assert": "^1.0.1",
     "@types/node": "^20.8.3",
     "@types/react": "^18.2.25",
     "@types/react-dom": "^18.2.11",
@@ -67,7 +66,6 @@
     "jest-environment-jsdom": "^29.7.0",
     "jotai": "^2.4.3",
     "microbundle": "^0.15.1",
-    "minimalistic-assert": "^1.0.1",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.0.3",
     "react": "^18.2.0",

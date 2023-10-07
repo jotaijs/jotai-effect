@@ -7,9 +7,6 @@ devDependencies:
   '@types/jest':
     specifier: ^29.5.5
     version: 29.5.5
-  '@types/minimalistic-assert':
-    specifier: ^1.0.1
-    version: 1.0.1
   '@types/node':
     specifier: ^20.8.3
     version: 20.8.3
@@ -64,9 +61,6 @@ devDependencies:
   microbundle:
     specifier: ^0.15.1
     version: 0.15.1
-  minimalistic-assert:
-    specifier: ^1.0.1
-    version: 1.0.1
   npm-run-all:
     specifier: ^4.1.5
     version: 4.1.5
@@ -2087,10 +2081,6 @@ packages:
 
   /@types/mime@3.0.2:
     resolution: {integrity: sha512-Wj+fqpTLtTbG7c0tH47dkahefpLKEbB+xAZuLq7b4/IDHPl/n6VoXcyUQ2bypFlbSwvCr0y+bD4euTTqTJsPxQ==}
-    dev: true
-
-  /@types/minimalistic-assert@1.0.1:
-    resolution: {integrity: sha512-LjFxDeQtgj+MYOOFuV+BILc/w9ryfxd2eNLF0oJdOBud+xCj80ZAEkAwt6y0qx81QMZ632yAaWdvIMjEK2HcmA==}
     dev: true
 
   /@types/node@20.8.3:
