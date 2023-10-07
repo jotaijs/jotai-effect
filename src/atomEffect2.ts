@@ -41,8 +41,8 @@ export function atomEffect(
       if (ref.inProgress) {
         throw new Error('infinite loop detected')
       }
-      await ref.cleanup?.()
       ref.inProgress = true
+      await ref.cleanup?.()
       ref.cleanup = await effectFn(get, setSelf as Setter)
       ref.inProgress = false
     },
