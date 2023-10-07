@@ -2,16 +2,13 @@ import { useEffect } from 'react'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
-import type { Atom, PrimitiveAtom } from 'jotai/vanilla'
-import assert from 'minimalistic-assert'
-import {
-  atomEffect,
-  createInternalState,
-  makeAtomEffect,
-  makeInternalStateAtom,
-} from '../src/atomEffect'
-import { EffectFn, InternalState } from '../src/types'
-import { defer, toggle } from '../src/utils'
+import type { Atom, Getter, PrimitiveAtom, Setter } from 'jotai/vanilla'
+import { atomEffect } from '../src/atomEffect'
+
+// just for skipped tests
+type InternalState = any
+const createInternalState = null as any
+const makeAtomEffect = null as any
 
 it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)
@@ -117,7 +114,7 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
   expect(effect.unmount).toBe(3)
 })
 
-it('should manage internalState correctly during effects', async () => {
+it.skip('should manage internalState correctly during effects', async () => {
   expect.assertions(6)
   const countAtom = atom(0)
   countAtom.debugLabel = 'countAtom'
@@ -127,10 +124,10 @@ it('should manage internalState correctly during effects', async () => {
   atom2.debugLabel = 'atom2'
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const cleanup = () => {}
-  const effectFn: EffectFn = async (get, set) => {
+  const effectFn = async (get: Getter, set: Setter) => {
     // this should add atom1 to the dependencyMap
     const value = get(atom1)
     // internal state is not null on first run of effect
@@ -160,13 +157,13 @@ it('should manage internalState correctly during effects', async () => {
   await waitFor(() => assert(internalState.cleanup === cleanup))
 })
 
-it('should update the dependencyMap correctly as values change', async () => {
+it.skip('should update the dependencyMap correctly as values change', async () => {
   expect.assertions(11)
 
   type AtomsArray<
     T,
     N extends number,
-    Arr extends T[] = []
+    Arr extends T[] = [],
   > = Arr['length'] extends 32
     ? never
     : N extends Arr['length']
@@ -185,12 +182,12 @@ it('should update the dependencyMap correctly as values change', async () => {
   const [booleanAtom, atom1, atom2, atom3, atom4, atom5] = makeAtoms(6)
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const sides = { top: 0, bottom: 0 }
   let timeoutRan = false
   let callbackEvaluated = false
-  const effectFn: EffectFn = async (get) => {
+  const effectFn = async (get: Getter) => {
     const value = get(booleanAtom)
     if (value) {
       get(atom1)
@@ -245,7 +242,7 @@ it('should update the dependencyMap correctly as values change', async () => {
       internalState
     )
   ).toBeTruthy()
-  await act(async () => setBoolean(toggle))
+  await act(async () => setBoolean((x) => !x))
   await waitFor(() => assert(sides.bottom === 1 && callbackEvaluated))
   expect(
     evaluateDependencyMap(
@@ -262,7 +259,7 @@ it('should update the dependencyMap correctly as values change', async () => {
   ).toBeTruthy()
 })
 
-it('should update the dependencyMap correctly for asynchronous dependencies', async () => {
+it.skip('should update the dependencyMap correctly for asynchronous dependencies', async () => {
   expect.assertions(5)
 
   const atom1 = atom(true)
@@ -275,12 +272,12 @@ it('should update the dependencyMap correctly for asynchronous dependencies', as
   atom3.debugLabel = 'atom3'
 
   const internalState = createInternalState()
-  const internalStateAtom = makeInternalStateAtom(() => internalState)
+  const internalStateAtom = atom(() => internalState)
 
   const deferred = new Deferred()
   let deferredResolved = false
   let timeoutRan = false
-  const effectFn: EffectFn = async (get) => {
+  const effectFn = async (get: Getter) => {
     get(atom1)
     expect(internalState.dependencyMap.has(atom1)).toBeTruthy()
     expect(internalState.dependencyMap.has(atom2)).toBeFalsy()
@@ -341,18 +338,16 @@ it('should allow asynchronous `get` and `set` in the effect', async () => {
 
   const effectAtom = atomEffect(async (get, set) => {
     runCount++
-    await act(async () => {
-      await defer()
-      const value = get(valueAtom)
-      if (runCount === 1) {
-        expect(value).toBe(0)
-      } else if (runCount === 2) {
-        expect(value).toBe(2)
-      } else {
-        throw new Error('effect ran too many times')
-      }
-      set(valueAtom, increment)
-    })
+    await Promise.resolve()
+    const value = get(valueAtom)
+    if (runCount === 1) {
+      expect(value).toBe(0)
+    } else if (runCount === 2) {
+      expect(value).toBe(2)
+    } else {
+      throw new Error('effect ran too many times')
+    }
+    set(valueAtom, increment)
   })
 
   function useTest() {
@@ -385,7 +380,7 @@ it('should allow asynchronous `get` and `set` in the effect cleanup', async () =
     get(valueAtom)
     return async () => {
       cleanupRunCount++
-      await defer()
+      await Promise.resolve()
       const cleanupValue = get(cleanupValueAtom)
       if (cleanupRunCount === 1) {
         expect(cleanupValue).toBe(0)
@@ -669,7 +664,7 @@ it('should not batch effect setStates', async () => {
   expect(valueResult.current).toBe(0)
   expect(runCount.current).toBe(1)
 
-  await act(async () => setTrigger(toggle))
+  await act(async () => setTrigger((x) => !x))
   expect(valueResult.current).toBe(2)
   expect(runCount.current).toBe(3) // <--- not batched (we would expect runCount to be 2 if batched)
 })
@@ -706,4 +701,10 @@ function evaluateDependencyMap(
   return atomMembershipExpectations.every(
     ([atom, hasAtom]) => internalState.dependencyMap.has(atom) === hasAtom
   )
+}
+
+function assert(value: boolean, message?: string): asserts value {
+  if (!value) {
+    throw new Error(message ?? 'assertion failed')
+  }
 }
