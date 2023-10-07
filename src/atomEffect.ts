@@ -3,18 +3,14 @@ import { atom } from 'jotai/vanilla'
 
 type PromiseOrValue<T> = Promise<T> | T
 type CleanupFn = () => PromiseOrValue<void>
-type State = {
-  mounted: boolean
-  inProgress: number
-  cleanup: CleanupFn | void
-}
+
 export function atomEffect(
   effectFn: (get: Getter, set: Setter) => PromiseOrValue<void | CleanupFn>
 ) {
-  const refAtom = atom<State>(() => ({
+  const refAtom = atom(() => ({
     mounted: false,
     inProgress: 0,
-    cleanup: undefined,
+    cleanup: undefined as CleanupFn | void,
   }))
   if (process.env.NODE_ENV !== 'production') {
     refAtom.debugPrivate = true
@@ -44,19 +40,6 @@ export function atomEffect(
     initAtom.debugPrivate = true
   }
 
-  const makeSetter =
-    (set: Setter, ref: State) =>
-    (...args: Parameters<Setter>) => {
-      let result
-      ++ref.inProgress
-      try {
-        result = set(...args)
-      } finally {
-        --ref.inProgress
-      }
-      return result
-    }
-
   const effectAtom = atom(
     async (get, { setSelf }) => {
       get(refreshAtom)
@@ -66,14 +49,23 @@ export function atomEffect(
       }
       ++ref.inProgress
       try {
-        const setter = makeSetter(setSelf as Setter, ref) as Setter
         await ref.cleanup?.()
-        ref.cleanup = await effectFn(get, setter)
+        ref.cleanup = await effectFn(get, setSelf as Setter)
       } finally {
         --ref.inProgress
       }
     },
-    (_get, set, ...args: Parameters<Setter>) => set(...args)
+    (get, set, ...args: Parameters<Setter>) => {
+      let result
+      const ref = get(refAtom)
+      ++ref.inProgress
+      try {
+        result = set(...args)
+      } finally {
+        --ref.inProgress
+      }
+      return result
+    }
   )
   if (process.env.NODE_ENV !== 'production') {
     effectAtom.debugPrivate = true

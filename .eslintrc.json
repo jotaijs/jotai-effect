@@ -99,9 +99,7 @@
       },
       "alias": {
         "extensions": [".js", ".jsx", ".ts", ".tsx", ".json"],
-        "map": [
-          ["^jotai-effect$", "./src/index.ts"]
-        ]
+        "map": [["^jotai-effect$", "./src/index.ts"]]
       }
     }
   },
