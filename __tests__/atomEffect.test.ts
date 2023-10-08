@@ -2,13 +2,7 @@ import { useEffect } from 'react'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
-import type { Atom, Getter, PrimitiveAtom, Setter } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
-
-// just for skipped tests
-type InternalState = any
-const createInternalState = null as any
-const makeAtomEffect = null as any
 
 it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)
@@ -112,194 +106,6 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
 
   // a second unmount should not run the cleanup again
   expect(effect.unmount).toBe(3)
-})
-
-it.skip('should manage internalState correctly during effects', async () => {
-  expect.assertions(6)
-  const countAtom = atom(0)
-  countAtom.debugLabel = 'countAtom'
-  const atom1 = atom(true)
-  atom1.debugLabel = 'atom1'
-  const atom2 = atom(true)
-  atom2.debugLabel = 'atom2'
-
-  const internalState = createInternalState()
-  const internalStateAtom = atom(() => internalState)
-
-  const cleanup = () => {}
-  const effectFn = async (get: Getter, set: Setter) => {
-    // this should add atom1 to the dependencyMap
-    const value = get(atom1)
-    // internal state is not null on first run of effect
-    expect(internalState).not.toBeNull()
-    if (internalState === null) throw new Error('internalState is null')
-    expect(internalState.inProgress).toBe(0)
-    expect(internalState.dependencyMap.has(atom1)).toBeTruthy()
-    if (value) {
-      get(atom2)
-      // conditional get should add atom2 to the dependencyMap
-      expect(internalState.dependencyMap.has(atom2)).toBeTruthy()
-    }
-    set(countAtom, 1)
-    // set should not affect the dependencyMap
-    expect(internalState.dependencyMap.has(countAtom)).toBeFalsy()
-    // inProgress is cleaned up after set
-    expect(internalState.inProgress).toBe(0)
-
-    return cleanup
-  }
-  const effectAtom = makeAtomEffect(effectFn, internalStateAtom)
-  const useTest = () => {
-    useAtomValue(effectAtom)
-  }
-  renderHook(useTest)
-
-  await waitFor(() => assert(internalState.cleanup === cleanup))
-})
-
-it.skip('should update the dependencyMap correctly as values change', async () => {
-  expect.assertions(11)
-
-  type AtomsArray<
-    T,
-    N extends number,
-    Arr extends T[] = [],
-  > = Arr['length'] extends 32
-    ? never
-    : N extends Arr['length']
-    ? Arr
-    : AtomsArray<T, N, [...Arr, T]>
-
-  function makeAtoms<Count extends number>(count: Count) {
-    const atoms: PrimitiveAtom<boolean>[] = []
-    for (let i = 0; i < count; i++) {
-      const anAtom = atom(true)
-      anAtom.debugLabel = `atom${i}`
-      atoms.push(anAtom)
-    }
-    return atoms as AtomsArray<PrimitiveAtom<boolean>, Count>
-  }
-  const [booleanAtom, atom1, atom2, atom3, atom4, atom5] = makeAtoms(6)
-
-  const internalState = createInternalState()
-  const internalStateAtom = atom(() => internalState)
-
-  const sides = { top: 0, bottom: 0 }
-  let timeoutRan = false
-  let callbackEvaluated = false
-  const effectFn = async (get: Getter) => {
-    const value = get(booleanAtom)
-    if (value) {
-      get(atom1)
-      // dependencyMap should have only atom1 and booleanAtom this run
-      expect(internalState.dependencyMap.has(booleanAtom)).toBeTruthy()
-      expect(internalState.dependencyMap.has(atom1)).toBeTruthy()
-      expect(internalState.dependencyMap.has(atom2)).toBeFalsy()
-      sides.top++
-      setTimeout(() => {
-        get(atom3)
-        // watched atoms in async callbacks should not be added to the dependencyMap
-        expect(internalState.dependencyMap.has(atom3)).toBeFalsy()
-        timeoutRan = true
-      }, 0)
-      return () => {
-        get(atom4)
-        // watched atoms in the cleanup should not be added to the dependencyMap
-        expect(internalState.dependencyMap.has(atom4)).toBeFalsy()
-        callbackEvaluated = true
-      }
-    }
-    get(atom2)
-    // dependencyMap should have only atom2 and booleanAtom this run
-    expect(internalState.dependencyMap.has(booleanAtom)).toBeTruthy()
-    expect(internalState.dependencyMap.has(atom1)).toBeFalsy()
-    expect(internalState.dependencyMap.has(atom2)).toBeTruthy()
-    await delay(0)
-    get(atom5)
-    // watched atoms in async functions should be added to the dependencyMap
-    expect(internalState.dependencyMap.has(atom5)).toBeTruthy()
-    sides.bottom++
-  }
-  const effectAtom = makeAtomEffect(effectFn, internalStateAtom)
-
-  const useTest = () => {
-    useAtomValue(effectAtom)
-    return useAtom(booleanAtom)
-  }
-  const { result } = renderHook(useTest)
-  const [, setBoolean] = result.current
-  await waitFor(() => assert(sides.top === 1 && timeoutRan))
-  expect(
-    evaluateDependencyMap(
-      [
-        [booleanAtom, true],
-        [atom1, true],
-        [atom2, false],
-        [atom3, false],
-        [atom4, false],
-        [atom5, false],
-      ],
-      internalState
-    )
-  ).toBeTruthy()
-  await act(async () => setBoolean((x) => !x))
-  await waitFor(() => assert(sides.bottom === 1 && callbackEvaluated))
-  expect(
-    evaluateDependencyMap(
-      [
-        [booleanAtom, true],
-        [atom1, false],
-        [atom2, true],
-        [atom3, false],
-        [atom4, false],
-        [atom5, true],
-      ],
-      internalState
-    )
-  ).toBeTruthy()
-})
-
-it.skip('should update the dependencyMap correctly for asynchronous dependencies', async () => {
-  expect.assertions(5)
-
-  const atom1 = atom(true)
-  atom1.debugLabel = 'atom1'
-
-  const atom2 = atom(true)
-  atom2.debugLabel = 'atom2'
-
-  const atom3 = atom(true)
-  atom3.debugLabel = 'atom3'
-
-  const internalState = createInternalState()
-  const internalStateAtom = atom(() => internalState)
-
-  const deferred = new Deferred()
-  let deferredResolved = false
-  let timeoutRan = false
-  const effectFn = async (get: Getter) => {
-    get(atom1)
-    expect(internalState.dependencyMap.has(atom1)).toBeTruthy()
-    expect(internalState.dependencyMap.has(atom2)).toBeFalsy()
-    setTimeout(() => {
-      get(atom3)
-      expect(internalState.dependencyMap.has(atom3)).toBeFalsy()
-      timeoutRan = true
-    }, 0)
-    await deferred.promise
-    get(atom2)
-    expect(internalState.dependencyMap.has(atom1)).toBeTruthy()
-    expect(internalState.dependencyMap.has(atom2)).toBeTruthy()
-    deferredResolved = true
-  }
-  const effectAtom = makeAtomEffect(effectFn, internalStateAtom)
-
-  const useTest = () => {
-    useAtomValue(effectAtom)
-  }
-  renderHook(useTest)
-  await act(async () => deferred.resolve())
-  await waitFor(() => assert(deferredResolved && timeoutRan))
 })
 
 it('should not cause infinite loops when effect updates the watched atom', async () => {
@@ -696,38 +502,56 @@ it('should not batch effect setStates', async () => {
   expect(runCount.current).toBe(3) // <--- not batched (we would expect runCount to be 2 if batched)
 })
 
+it('should batch synchronous updates as a single transaction', async () => {
+  expect.assertions(4)
+  const lettersAtom = atom('a')
+  lettersAtom.debugLabel = 'lettersAtom'
+  const numbersAtom = atom(0)
+  numbersAtom.debugLabel = 'numbersAtom'
+  const lettersAndNumbersAtom = atom([] as string[])
+  lettersAndNumbersAtom.debugLabel = 'lettersAndNumbersAtom'
+  let runCount = 0
+  const effectAtom = atomEffect(async (get, set) => {
+    runCount++
+    const letters = get(lettersAtom)
+    const numbers = get(numbersAtom)
+    set(lettersAndNumbersAtom, (lettersAndNumbers) => [
+      ...lettersAndNumbers,
+      letters + String(numbers),
+    ])
+  })
+  function useTest() {
+    useAtomValue(effectAtom)
+    const setLetters = useSetAtom(lettersAtom)
+    const setNumbers = useSetAtom(numbersAtom)
+    const lettersAndNumbers = useAtomValue(lettersAndNumbersAtom)
+    return { setLetters, setNumbers, lettersAndNumbers }
+  }
+  const { result } = renderHook(useTest)
+  const { setLetters, setNumbers } = result.current
+  await waitFor(() => assert(!!runCount))
+  expect(runCount).toBe(1)
+  expect(result.current.lettersAndNumbers).toEqual(['a0'])
+  await act(async () => {
+    setLetters(incrementLetter)
+    setNumbers(increment)
+  })
+  expect(runCount).toBe(2)
+  expect(result.current.lettersAndNumbers).toEqual(['a0', 'b1'])
+})
+
 function increment(count: number) {
   return count + 1
+}
+
+function incrementLetter(str: string) {
+  return String.fromCharCode(increment(str.charCodeAt(0)))
 }
 
 function delay(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
-}
-
-class Deferred<T = void> {
-  promise: Promise<T>
-
-  resolve!: (value: T | PromiseLike<T>) => void
-
-  reject!: (reason?: unknown) => void
-
-  constructor() {
-    this.promise = new Promise<T>((resolve, reject) => {
-      this.resolve = resolve
-      this.reject = reject
-    })
-  }
-}
-
-function evaluateDependencyMap(
-  atomMembershipExpectations: [Atom<boolean>, boolean][],
-  internalState: InternalState
-) {
-  return atomMembershipExpectations.every(
-    ([atom, hasAtom]) => internalState.dependencyMap.has(atom) === hasAtom
-  )
 }
 
 function assert(value: boolean, message?: string): asserts value {

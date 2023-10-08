@@ -10,7 +10,7 @@ export function atomEffect(
   const refAtom = atom(() => ({
     mounted: false,
     inProgress: 0,
-    cleanup: undefined as void | CleanupFn,
+    cleanup: undefined as CleanupFn | void,
   }))
   if (process.env.NODE_ENV !== 'production') {
     refAtom.debugPrivate = true
