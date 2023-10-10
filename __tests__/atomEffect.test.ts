@@ -540,6 +540,61 @@ it('should batch synchronous updates as a single transaction', async () => {
   expect(result.current.lettersAndNumbers).toEqual(['a0', 'b1'])
 })
 
+it.only('should run the effect once even if the effect is mounted multiple times', async () => {
+  expect.assertions(3)
+  const lettersAtom = atom('a')
+  lettersAtom.debugLabel = 'lettersAtom'
+  const numbersAtom = atom(0)
+  numbersAtom.debugLabel = 'numbersAtom'
+  let runCount = 0
+  const effectAtom = atomEffect(async (get) => {
+    runCount++
+    get(lettersAtom)
+    get(lettersAtom)
+    get(numbersAtom)
+    get(numbersAtom)
+  })
+  const derivedAtom = atom((get) => {
+    get(effectAtom)
+    get(effectAtom)
+  })
+  const derivedAtom2 = atom((get) => {
+    get(effectAtom)
+  })
+  const derivedAtom3 = atom((get) => {
+    get(derivedAtom2)
+  })
+  const derivedAtom4 = atom((get) => {
+    get(derivedAtom2)
+  })
+  function useTest() {
+    useAtomValue(effectAtom)
+    useAtomValue(effectAtom)
+    useAtomValue(derivedAtom)
+    useAtomValue(derivedAtom)
+    useAtomValue(derivedAtom2)
+    useAtomValue(derivedAtom3)
+    useAtomValue(derivedAtom4)
+    const setLetters = useSetAtom(lettersAtom)
+    const setNumbers = useSetAtom(numbersAtom)
+    return { setLetters, setNumbers }
+  }
+  const { result } = renderHook(useTest)
+  const { setLetters, setNumbers } = result.current
+  await waitFor(() => assert(!!runCount))
+  expect(runCount).toBe(1)
+  await act(async () => {
+    setLetters(incrementLetter)
+    setNumbers(increment)
+  })
+  expect(runCount).toBe(2)
+  await act(async () => {
+    setLetters(incrementLetter)
+    setNumbers(increment)
+  })
+  expect(runCount).toBe(3)
+})
+
 function increment(count: number) {
   return count + 1
 }
