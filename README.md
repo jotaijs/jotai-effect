@@ -1,5 +1,12 @@
 #  Effect
 
+[jotai-effect](https://github.com/jotaijs/jotai-effect) is a utility package for reactive side effects.
+
+## install
+```
+yarn add jotai-effect
+```
+
 ## atomEffect
 
 `atomEffect` is a utility function for declaring side effects and synchronizing atoms in Jotai. It is useful for observing and reacting to state changes.
