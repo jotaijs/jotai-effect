@@ -20,7 +20,7 @@ function atomEffect(effectFn: EffectFn): Atom<void>
 
 Subscribe to Atom Changes
 ```js
-import { atomEffect } from 'jotai/utils'
+import { atomEffect } from 'jotai-effect'
 
 const loggingEffect = atomEffect((get, set) => {
   // runs on mount or whenever someAtom changes
@@ -31,6 +31,8 @@ const loggingEffect = atomEffect((get, set) => {
 
 Setup and Teardown Side Effects
 ```js
+import { atomEffect } from 'jotai-effect'
+
 const subscriptionEffect = atomEffect((get, set) => {
   const unsubscribe = subscribe((value) => {
     set(valueAtom, value)
@@ -44,8 +46,6 @@ const subscriptionEffect = atomEffect((get, set) => {
 After defining an effect using `atomEffect`, it can be integrated within another atom's read function or passed to Jotai hooks.
 
 ```js
-import { atom } from 'jotai'
-
 const anAtom = atom((get) => {
   // mounts the atomEffect when anAtom mounts
   get(loggingEffect)
