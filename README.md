@@ -1,5 +1,12 @@
 #  Effect
 
+You can use [jotai-effect](https://github.com/jotaijs/jotai-effect) to execute side effects and sync atoms when Jotai atom values change.
+
+## install
+```
+yarn add jotai-effect
+```
+
 ## atomEffect
 
 `atomEffect` is a utility function for declaring side effects and synchronizing atoms in Jotai. It is useful for observing and reacting to state changes.
