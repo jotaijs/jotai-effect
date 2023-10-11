@@ -56,15 +56,13 @@ export function atomEffect(
       }
     },
     (get, set, ...args: Parameters<Setter>) => {
-      let result
       const ref = get(refAtom)
       ++ref.inProgress
       try {
-        result = set(...args)
+        return set(...args)
       } finally {
         --ref.inProgress
       }
-      return result
     }
   )
   if (process.env.NODE_ENV !== 'production') {
