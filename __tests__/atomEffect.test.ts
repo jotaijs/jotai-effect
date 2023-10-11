@@ -540,7 +540,7 @@ it('should batch synchronous updates as a single transaction', async () => {
   expect(result.current.lettersAndNumbers).toEqual(['a0', 'b1'])
 })
 
-it.only('should run the effect once even if the effect is mounted multiple times', async () => {
+it('should run the effect once even if the effect is mounted multiple times', async () => {
   expect.assertions(3)
   const lettersAtom = atom('a')
   lettersAtom.debugLabel = 'lettersAtom'
