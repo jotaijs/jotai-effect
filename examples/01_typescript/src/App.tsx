@@ -1,44 +1,39 @@
-import React from 'react'
-import { useAtom } from 'jotai/react'
+import React, { SetStateAction } from 'react'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
 import type { Getter, Setter } from 'jotai/vanilla'
 import { atomEffect } from 'jotai-effect'
 
-const playPauseAtom = atom(false)
-const countAtom = atom(0)
-
 const increment = (prev: number) => prev + 1
 const toggle = (prev: boolean) => !prev
 
+const playPauseAtom = atom<boolean, [unknown | SetStateAction<boolean>], void>(
+  false,
+  (_get, set) => {
+    set(playPauseAtom, toggle)
+  }
+)
+const countAtom = atom(0)
+const resetCountAtom = atom(null, (_get, set) => set(countAtom, 0))
+
 const incrementOnIntervalAtom = atomEffect((get: Getter, set: Setter) => {
-  const isPlay = get(playPauseAtom)
-  if (!isPlay) return
-  const interval = setInterval(() => {
-    set(countAtom, increment)
-  }, 1000)
-  return () => clearInterval(interval)
+  if (get(playPauseAtom)) {
+    const intervalId = setInterval(() => {
+      set(countAtom, increment)
+    }, 500)
+    return () => clearInterval(intervalId)
+  }
 })
 
-function Counter() {
+export function App() {
   useAtom(incrementOnIntervalAtom)
-  const [count, setCount] = useAtom(countAtom)
-  const resetCount = () => setCount(0)
-  return (
-    <>
-      count: {count}
-      <button onClick={resetCount}>Reset Count</button>
-    </>
-  )
-}
-
-export default function App() {
-  const [isPlay, setPlayPause] = useAtom(playPauseAtom)
-  const togglePlayPause = () => setPlayPause(toggle)
+  const [isPlay, togglePlayPause] = useAtom(playPauseAtom)
+  const count = useAtomValue(countAtom)
+  const resetCount = useSetAtom(resetCountAtom)
   return (
     <div className="App">
-      <h1>Hello CodeSandbox</h1>
-      <h2>Start editing to see some magic happen!</h2>
-      <Counter />
+      <div>count: {count}</div>
+      <button onClick={resetCount}>Reset Count</button>
       <button onClick={togglePlayPause}>{isPlay ? 'Pause' : 'Play'}</button>
     </div>
   )
