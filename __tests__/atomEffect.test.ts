@@ -596,7 +596,7 @@ it('should run the effect once even if the effect is mounted multiple times', as
   expect(runCount).toBe(3)
 })
 
-it('should run abort the effect when the effect is unmounted even the effect is pending', async () => {
+it('should run the abort signal cleanup when the effect is ignored', async () => {
   let abortedCount = 0
   const countAtom = atom(0)
   const resolve: (() => void)[] = []
