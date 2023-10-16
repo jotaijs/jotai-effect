@@ -1,8 +1,24 @@
 import { useEffect } from 'react'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
-import { atom } from 'jotai/vanilla'
+import { atom, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
+
+it('should run the effect on vanilla store', async () => {
+  const store = getDefaultStore()
+  const countAtom = atom(0)
+  const effectAtom = atomEffect((_, set) => {
+    set(countAtom, increment)
+    return () => {
+      set(countAtom, 0)
+    }
+  })
+  const unsub = store.sub(effectAtom, () => void 0)
+  expect(store.get(countAtom)).toBe(0)
+  await waitFor(() => expect(store.get(countAtom)).toBe(1))
+  unsub()
+  await waitFor(() => expect(store.get(countAtom)).toBe(0))
+})
 
 it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)
