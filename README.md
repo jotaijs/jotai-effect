@@ -25,7 +25,7 @@ type EffectFn = (
 function atomEffect(effectFn: EffectFn): Atom<void>
 ```
 
-**effectFn** (required): A function or async function for listening to state updates with `get` and writing state updates with `set`. The `effectFn` is useful for creating side effects that interact with other Jotai atoms. You can cleanup these side effects by returning a cleanup function.
+**effectFn** (required): A function for listening to state updates with `get` and writing state updates with `set`. The `effectFn` is useful for creating side effects that interact with other Jotai atoms. You can cleanup these side effects by returning a cleanup function.
 
 ## Usage
 
@@ -213,7 +213,7 @@ Aside from mount events, the effect runs when any of its dependencies change val
     <summary>Example</summary>
 
   ```js
-  const asyncEffect = atomEffect((get, set) => {
+  atomEffect((get, set) => {
     // updates whenever `anAtom` changes value but not when `anotherAtom` changes value
     get(anAtom)
     setTimeout(() => {
@@ -227,12 +227,14 @@ Aside from mount events, the effect runs when any of its dependencies change val
 - **Async:**
   For effects that return a promise, all atoms accessed with `get` prior to the returned promise resolving are added to the atom's internal dependency map. Atoms that have been watched after the promise has resolved, for instance in a `setTimeout`, are not included in the dependency map.
 
+  ⚠️ Use [caution](https://github.com/jotaijs/jotai-effect/discussions/10) when using async effects
+
   <!-- prettier-ignore -->
   <details style="cursor: pointer; user-select: none;">
     <summary>Example</summary>
 
   ```js
-  const asyncEffect = atomEffect(async (get, set) => {
+  atomEffect(async (get, set) => {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     // updates whenever `anAtom` changes value but not when `anotherAtom` changes value
     get(anAtom)
@@ -252,7 +254,7 @@ Aside from mount events, the effect runs when any of its dependencies change val
     <summary>Example</summary>
 
   ```js
-  const asyncEffect = atomEffect((get, set) => {
+  atomEffect((get, set) => {
     // runs once on atom mount
     // does not update when `idAtom` changes
     const unsubscribe = subscribe((value) => {
@@ -277,7 +279,7 @@ Aside from mount events, the effect runs when any of its dependencies change val
   ```js
   const isEnabledAtom = atom(true)
 
-  const asyncEffect = atomEffect((get, set) => {
+  atomEffect((get, set) => {
     // if `isEnabledAtom` is true, runs when `isEnabledAtom` or `anAtom` changes value
     // otherwise runs when `isEnabledAtom` or `anotherAtom` changes value
     if (get(isEnabledAtom)) {
@@ -313,7 +315,7 @@ This guarantees that a single effect will be used regardless of how many calls t
 
 The same guarantee can be achieved with the useEffect hook if you ensure that the useEffect has only one actioning call.
 
-atomEffects are distinguished from useEffect in a few other ways. The can directly react to atom state changes, are resistent to infinite loops, support async callbacks, and can be mounted conditionally.
+atomEffects are distinguished from useEffect in a few other ways. The can directly react to atom state changes, are resistent to infinite loops, and can be mounted conditionally.
 
 #### It's up to you
 
