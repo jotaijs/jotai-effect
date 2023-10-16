@@ -5,13 +5,7 @@ type PromiseOrValue<T> = Promise<T> | T
 type CleanupFn = () => PromiseOrValue<void>
 
 export function atomEffect(
-  effectFn: (
-    get: Getter,
-    set: Setter,
-    options: {
-      signal: AbortSignal
-    }
-  ) => PromiseOrValue<void | CleanupFn>
+  effectFn: (get: Getter, set: Setter) => PromiseOrValue<void | CleanupFn>
 ) {
   const refAtom = atom(() => ({
     mounted: false,
@@ -47,7 +41,7 @@ export function atomEffect(
   }
 
   const effectAtom = atom(
-    async (get, { setSelf, signal }) => {
+    async (get, { setSelf }) => {
       get(refreshAtom)
       const ref = get(refAtom)
       if (!ref.mounted || ref.inProgress) {
@@ -56,7 +50,7 @@ export function atomEffect(
       ++ref.inProgress
       try {
         await ref.cleanup?.()
-        ref.cleanup = await effectFn(get, setSelf as Setter, { signal })
+        ref.cleanup = await effectFn(get, setSelf as Setter)
       } finally {
         --ref.inProgress
       }
