@@ -595,6 +595,77 @@ it('should run the effect once even if the effect is mounted multiple times', as
   expect(runCount).toBe(3)
 })
 
+it('should abort the previous promise', async () => {
+  let runCount = 0
+  const abortedRuns: number[] = []
+  const completedRuns: number[] = []
+  const resolves: (() => void)[] = []
+  const countAtom = atom(0)
+  const abortControllerAtom = atom<{ abortController: AbortController | null }>(
+    {
+      abortController: null,
+    }
+  )
+  const effectAtom = atomEffect(async (get, _set) => {
+    const currentRun = runCount++
+    get(countAtom)
+    const abortControllerRef = get(abortControllerAtom)
+    const abortController = new AbortController()
+    const { signal } = abortController
+    let aborted = false
+    const abortCallback = () => {
+      abortedRuns.push(currentRun)
+      aborted = true
+    }
+    signal.addEventListener('abort', abortCallback)
+
+    abortControllerRef.abortController = abortController
+    new Promise<void>((resolve) => resolves.push(resolve)).then(() => {
+      if (aborted) return
+      abortControllerRef.abortController = null
+      completedRuns.push(currentRun)
+    })
+    return () => {
+      abortControllerRef.abortController?.abort()
+      abortControllerRef.abortController = null
+      signal.removeEventListener('abort', abortCallback)
+    }
+  })
+  async function resolveAll() {
+    resolves.forEach((resolve) => resolve())
+    resolves.length = 0
+    await delay(0)
+  }
+  function useTest() {
+    useAtomValue(effectAtom)
+    return useSetAtom(countAtom)
+  }
+  const { result } = renderHook(useTest)
+  const setCount = result.current
+  await waitFor(() => assert(!!runCount))
+
+  await resolveAll()
+  expect(runCount).toBe(1)
+  expect(abortedRuns).toEqual([])
+  expect(completedRuns).toEqual([0])
+
+  await act(async () => setCount(increment))
+  expect(runCount).toBe(2)
+  expect(abortedRuns).toEqual([])
+  expect(completedRuns).toEqual([0])
+
+  // aborted run
+  await act(async () => setCount(increment))
+  expect(runCount).toBe(3)
+  expect(abortedRuns).toEqual([1])
+  expect(completedRuns).toEqual([0])
+
+  await resolveAll()
+  expect(runCount).toBe(3)
+  expect(abortedRuns).toEqual([1])
+  expect(completedRuns).toEqual([0, 2])
+})
+
 function increment(count: number) {
   return count + 1
 }
