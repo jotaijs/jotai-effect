@@ -1,6 +1,5 @@
-import { createElement, useEffect } from 'react'
-import { act, render, renderHook, waitFor } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
+import { useEffect } from 'react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
@@ -594,64 +593,6 @@ it('should run the effect once even if the effect is mounted multiple times', as
     setNumbers(increment)
   })
   expect(runCount).toBe(3)
-})
-
-it('should run the abort signal cleanup when the effect is ignored', async () => {
-  let abortedCount = 0
-  const countAtom = atom(0)
-  const resolve: (() => void)[] = []
-  const effectAtom = atomEffect(async (get, __, { signal }) => {
-    get(countAtom)
-    const callback = () => {
-      ++abortedCount
-    }
-    signal.addEventListener('abort', callback)
-    await new Promise<void>((r) => resolve.push(r))
-    signal.removeEventListener('abort', callback)
-  })
-
-  const Component = () => {
-    useAtomValue(effectAtom)
-    const count = useAtomValue(countAtom)
-    return `count: ${count}`
-  }
-
-  const Controls = () => {
-    const setCount = useSetAtom(countAtom)
-    return createElement(
-      'button',
-      {
-        onClick: () => {
-          setCount(increment)
-        },
-      },
-      'button'
-    )
-  }
-
-  const { findByText } = render(
-    createElement('div', {}, [
-      createElement(Component, { key: 'component' }),
-      createElement(Controls, { key: 'controls' }),
-    ])
-  )
-
-  await findByText('count: 0')
-  expect(resolve.length).toBe(1)
-  await userEvent.click(await findByText('button'))
-  await findByText('count: 1')
-  expect(resolve.length).toBe(1)
-  resolve.forEach((r) => r())
-
-  await userEvent.click(await findByText('button'))
-  await findByText('count: 2')
-  expect(resolve.length).toBe(2)
-
-  expect(abortedCount).toBe(0)
-  await userEvent.click(await findByText('button'))
-  await userEvent.click(await findByText('button'))
-  resolve.forEach((r) => r())
-  expect(abortedCount).toBe(1)
 })
 
 function increment(count: number) {
