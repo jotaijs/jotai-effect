@@ -20,15 +20,12 @@ type CleanupFn = () => void
 type EffectFn = (
   get: Getter
   set: Setter
-  options: { signal: AbortSignal }
 ) => CleanupFn | void | Promise<CleanupFn | void>
 
 function atomEffect(effectFn: EffectFn): Atom<void>
 ```
 
 **effectFn** (required): A function or async function for listening to state updates with `get` and writing state updates with `set`. The `effectFn` is useful for creating side effects that interact with other Jotai atoms. You can cleanup these side effects by returning a cleanup function.
-
-For inforation on `options.signal` see the [advanced-api](https://jotai.org/docs/core/atom#advanced-api) section.
 
 ## Usage
 
