@@ -1,11 +1,10 @@
 import type { Getter, Setter } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 
-type PromiseOrValue<T> = Promise<T> | T
-type CleanupFn = () => PromiseOrValue<void>
+type CleanupFn = () => void
 
 export function atomEffect(
-  effectFn: (get: Getter, set: Setter) => PromiseOrValue<void | CleanupFn>
+  effectFn: (get: Getter, set: Setter) => void | CleanupFn
 ) {
   const refAtom = atom(() => ({
     mounted: false,
@@ -49,8 +48,9 @@ export function atomEffect(
       }
       ++ref.inProgress
       try {
-        await ref.cleanup?.()
-        ref.cleanup = await effectFn(get, setSelf as Setter)
+        await void 0
+        ref.cleanup?.()
+        ref.cleanup = effectFn(get, setSelf as Setter)
       } finally {
         --ref.inProgress
       }
