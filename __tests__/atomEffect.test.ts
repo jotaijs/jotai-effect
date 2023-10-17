@@ -180,94 +180,6 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
   expect(runCount).toBe(2)
 })
 
-it('should allow asynchronous `get` and `set` in the effect', async () => {
-  expect.assertions(5)
-  const valueAtom = atom(0)
-  let runCount = 0
-
-  const effectAtom = atomEffect(async (get, set) => {
-    runCount++
-    await Promise.resolve()
-    const value = get(valueAtom)
-    if (runCount === 1) {
-      expect(value).toBe(0)
-    } else if (runCount === 2) {
-      expect(value).toBe(2)
-    } else {
-      throw new Error('effect ran too many times')
-    }
-    set(valueAtom, increment)
-  })
-
-  function useTest() {
-    useAtomValue(effectAtom)
-    return useAtom(valueAtom)
-  }
-  const { result } = renderHook(useTest)
-  const [, setCount] = result.current
-
-  // initial render should run the effect
-  await waitFor(() => assert(result.current[0] === 1))
-  expect(runCount).toBe(1)
-
-  // changing the value should run the effect again
-  await act(async () => setCount(increment))
-  expect(runCount).toBe(2)
-  expect(result.current[0]).toBe(3)
-})
-
-it('should allow asynchronous `get` and `set` in the effect cleanup', async () => {
-  expect.assertions(5)
-
-  const valueAtom = atom(0)
-  const cleanupValueAtom = atom(0)
-  let runCount = 0
-  let cleanupRunCount = 0
-
-  const effectAtom = atomEffect(async (get, set) => {
-    runCount++
-    get(valueAtom)
-    return async () => {
-      cleanupRunCount++
-      await Promise.resolve()
-      const cleanupValue = get(cleanupValueAtom)
-      if (cleanupRunCount === 1) {
-        expect(cleanupValue).toBe(0)
-      } else if (cleanupRunCount === 2) {
-        expect(cleanupValue).toBe(2)
-      } else {
-        throw new Error('cleanup ran too many times')
-      }
-      set(cleanupValueAtom, increment)
-    }
-  })
-
-  function useTest() {
-    useAtomValue(effectAtom)
-    const [value, setValue] = useAtom(valueAtom)
-    const setCleanupValue = useSetAtom(cleanupValueAtom)
-    return { value, setValue, setCleanupValue }
-  }
-
-  const { result, unmount } = renderHook(useTest)
-  const { setValue, setCleanupValue } = result.current
-
-  await waitFor(() => assert(runCount === 1))
-
-  // changing the value should trigger the cleanup again
-  await act(async () => setValue(increment))
-
-  expect(cleanupRunCount).toBe(1)
-  // changing the cleanupValue does not cause effect to rerun
-  // this is because effect dependencies are only those that are read in the effect
-  await act(async () => setCleanupValue(increment))
-  expect(cleanupRunCount).toBe(1)
-
-  // unmounting should trigger the cleanup
-  unmount()
-  expect(cleanupRunCount).toBe(2)
-})
-
 it('should conditionally run the effect and cleanup when effectAtom is unmounted', async () => {
   expect.assertions(6)
 
@@ -275,7 +187,7 @@ it('should conditionally run the effect and cleanup when effectAtom is unmounted
   let effectRunCount = 0
   let cleanupRunCount = 0
 
-  const effectAtom = atomEffect(async () => {
+  const effectAtom = atomEffect(() => {
     effectRunCount++
     return () => {
       cleanupRunCount++
@@ -497,7 +409,7 @@ it('should not batch effect setStates', async () => {
     return get(valueAtom)
   })
   const triggerAtom = atom(false)
-  const effectAtom = atomEffect(async (get, set) => {
+  const effectAtom = atomEffect((get, set) => {
     if (get(triggerAtom)) {
       set(valueAtom, increment)
       set(valueAtom, increment)
@@ -527,7 +439,7 @@ it('should batch synchronous updates as a single transaction', async () => {
   const lettersAndNumbersAtom = atom([] as string[])
   lettersAndNumbersAtom.debugLabel = 'lettersAndNumbersAtom'
   let runCount = 0
-  const effectAtom = atomEffect(async (get, set) => {
+  const effectAtom = atomEffect((get, set) => {
     runCount++
     const letters = get(lettersAtom)
     const numbers = get(numbersAtom)
@@ -563,7 +475,7 @@ it('should run the effect once even if the effect is mounted multiple times', as
   const numbersAtom = atom(0)
   numbersAtom.debugLabel = 'numbersAtom'
   let runCount = 0
-  const effectAtom = atomEffect(async (get) => {
+  const effectAtom = atomEffect((get) => {
     runCount++
     get(lettersAtom)
     get(lettersAtom)
@@ -622,7 +534,7 @@ it('should abort the previous promise', async () => {
       abortController: null,
     }
   )
-  const effectAtom = atomEffect(async (get, _set) => {
+  const effectAtom = atomEffect((get) => {
     const currentRun = runCount++
     get(countAtom)
     const abortControllerRef = get(abortControllerAtom)
