@@ -20,7 +20,7 @@ type CleanupFn = () => void
 type EffectFn = (
   get: Getter
   set: Setter
-) => CleanupFn | void | Promise<CleanupFn | void>
+) => CleanupFn | void
 
 function atomEffect(effectFn: EffectFn): Atom<void>
 ```
@@ -225,22 +225,25 @@ Aside from mount events, the effect runs when any of its dependencies change val
   </details>
 
 - **Async:**
-  For effects that return a promise, all atoms accessed with `get` prior to the returned promise resolving are added to the atom's internal dependency map. Atoms that have been watched after the promise has resolved, for instance in a `setTimeout`, are not included in the dependency map.
-
-  ⚠️ Use [caution](https://github.com/jotaijs/jotai-effect/discussions/10) when using async effects
+  For async effects, you should use an abort controller to cancel pending fetch requests and promises.
 
   <!-- prettier-ignore -->
   <details style="cursor: pointer; user-select: none;">
     <summary>Example</summary>
 
   ```js
-  atomEffect(async (get, set) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    // updates whenever `anAtom` changes value but not when `anotherAtom` changes value
-    get(anAtom)
-    setTimeout(() => {
-      get(anotherAtom)
-    }, 5000)
+  atomEffect((get, set) => {
+    const count = get(countAtom) // countAtom is an atom dependency
+    const promise = new AbortablePromise((resolve, reject, signal) => {
+      signal.onabort = () => {
+        // async cleanup logic here
+      }
+      get(dataAtom); // dataAtom is not an atom dependency
+      // Your async logic here
+    })
+    return () => {
+      promise.abort()
+    }
   })
   ```
 
