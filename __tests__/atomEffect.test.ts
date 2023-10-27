@@ -1,4 +1,4 @@
-import { createElement, useEffect } from 'react'
+import { StrictMode, createElement, useEffect } from 'react'
 import {
   act,
   render,
@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
 
@@ -600,7 +600,7 @@ it('should abort the previous promise', async () => {
   expect(completedRuns).toEqual([0, 2])
 })
 
-describe.only('should not run the effect when the effectAtom is unmounted', () => {
+describe('should not run the effect when the effectAtom is unmounted', () => {
   it('[render]', async () => {
     const countAtom = atom(0)
     let runCount = 0
@@ -617,7 +617,7 @@ describe.only('should not run the effect when the effectAtom is unmounted', () =
         children: 'increment',
       })
     }
-    render(createElement(TestComponent, null), { wrapper: Provider })
+    render(createElement(TestComponent, null), { wrapper: StrictMode })
     await delay(0)
     expect(runCount).toBe(1)
     await act(async () => screen.getByText('increment').click())
