@@ -4,6 +4,8 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
 
+const wrapper = StrictMode
+
 it('should run the effect on vanilla store', async () => {
   const store = getDefaultStore()
   const countAtom = atom(0)
@@ -38,7 +40,7 @@ it('should run the effect on mount and cleanup on unmount once', async () => {
     hasRun = true
     return useAtomValue(effectAtom)
   }
-  const { result, rerender, unmount } = renderHook(useTest)
+  const { result, rerender, unmount } = renderHook(useTest, { wrapper })
   await waitFor(() => assert(hasRun && hasMounted))
   // effect does not return a value
   expect(result.current).toBe(undefined)
@@ -81,7 +83,7 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
     }, [count])
     return setCount
   }
-  const { result, rerender, unmount } = renderHook(useTest)
+  const { result, rerender, unmount } = renderHook(useTest, { wrapper })
   async function incrementCount() {
     const setCount = result.current
     await act(async () => setCount(increment))
@@ -135,7 +137,7 @@ it('should not cause infinite loops when effect updates the watched atom', async
     const setCount = useSetAtom(watchedAtom)
     return () => act(async () => setCount(increment))
   }
-  const { result, rerender } = renderHook(useTest)
+  const { result, rerender } = renderHook(useTest, { wrapper: StrictMode })
 
   // initial render should run the effect once
   await waitFor(() => assert(runCount === 1))
@@ -166,7 +168,7 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
     const setCount = useSetAtom(watchedAtom)
     return () => act(async () => setCount(increment))
   }
-  const { result } = renderHook(useTest)
+  const { result } = renderHook(useTest, { wrapper: StrictMode })
   await delay(0)
   // initial render should run the effect once
   await waitFor(() => assert(runCount === 1))
@@ -200,7 +202,7 @@ it('should conditionally run the effect and cleanup when effectAtom is unmounted
     return useSetAtom(booleanAtom)
   }
 
-  const { result } = renderHook(useTest)
+  const { result } = renderHook(useTest, { wrapper: StrictMode })
   const setBoolean = result.current
   const toggleBoolean = () => act(async () => setBoolean((prev) => !prev))
 
@@ -244,7 +246,7 @@ describe('should correctly process synchronous updates to the same atom', () => 
       }
       return { count, incrementCount }
     }
-    const { result } = renderHook(useTest)
+    const { result } = renderHook(useTest, { wrapper: StrictMode })
     return { result, runCount }
   }
 
@@ -412,9 +414,11 @@ it('should not batch effect setStates', async () => {
       set(valueAtom, increment)
     }
   })
-  const { result: valueResult } = renderHook(() => useAtomValue(derivedAtom))
-  renderHook(() => useAtomValue(effectAtom))
-  const { result } = renderHook(() => useSetAtom(triggerAtom))
+  const { result: valueResult } = renderHook(() => useAtomValue(derivedAtom), {
+    wrapper,
+  })
+  renderHook(() => useAtomValue(effectAtom), { wrapper: StrictMode })
+  const { result } = renderHook(() => useSetAtom(triggerAtom), { wrapper })
   const setTrigger = result.current
 
   await waitFor(() => assert(runCount.current === 1))
@@ -452,7 +456,7 @@ it('should batch synchronous updates as a single transaction', async () => {
     const lettersAndNumbers = useAtomValue(lettersAndNumbersAtom)
     return { setLetters, setNumbers, lettersAndNumbers }
   }
-  const { result } = renderHook(useTest)
+  const { result } = renderHook(useTest, { wrapper: StrictMode })
   const { setLetters, setNumbers } = result.current
   await waitFor(() => assert(!!runCount))
   expect(runCount).toBe(1)
@@ -504,7 +508,7 @@ it('should run the effect once even if the effect is mounted multiple times', as
     const setNumbers = useSetAtom(numbersAtom)
     return { setLetters, setNumbers }
   }
-  const { result } = renderHook(useTest)
+  const { result } = renderHook(useTest, { wrapper: StrictMode })
   const { setLetters, setNumbers } = result.current
   await waitFor(() => assert(!!runCount))
   expect(runCount).toBe(1)
@@ -565,7 +569,7 @@ it('should abort the previous promise', async () => {
     useAtomValue(effectAtom)
     return useSetAtom(countAtom)
   }
-  const { result } = renderHook(useTest)
+  const { result } = renderHook(useTest, { wrapper: StrictMode })
   const setCount = result.current
   await waitFor(() => assert(!!runCount))
 
@@ -589,25 +593,6 @@ it('should abort the previous promise', async () => {
   expect(runCount).toBe(3)
   expect(abortedRuns).toEqual([1])
   expect(completedRuns).toEqual([0, 2])
-})
-
-it('should not run the effect when the effectAtom is unmounted', async () => {
-  const countAtom = atom(0)
-  let runCount = 0
-  const effectAtom = atomEffect((get) => {
-    runCount++
-    get(countAtom)
-  })
-  function useTest() {
-    useAtom(effectAtom)
-    return useAtom(countAtom)[1]
-  }
-  const { result } = renderHook(useTest, { wrapper: StrictMode })
-  const setCount = result.current
-  await delay(0)
-  expect(runCount).toBe(1)
-  await act(() => setCount(increment))
-  expect(runCount).toBe(2)
 })
 
 function increment(count: number) {
