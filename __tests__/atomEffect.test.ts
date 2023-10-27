@@ -1,7 +1,13 @@
-import { useEffect } from 'react'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { StrictMode, createElement, useEffect } from 'react'
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
-import { atom, getDefaultStore } from 'jotai/vanilla'
+import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
 
 it('should run the effect on vanilla store', async () => {
@@ -592,6 +598,67 @@ it('should abort the previous promise', async () => {
   expect(runCount).toBe(3)
   expect(abortedRuns).toEqual([1])
   expect(completedRuns).toEqual([0, 2])
+})
+
+describe('should not run the effect when the effectAtom is unmounted', () => {
+  it('[render]', async () => {
+    const countAtom = atom(0)
+    let runCount = 0
+    const effectAtom = atomEffect((get) => {
+      runCount++
+      console.log('[run]', { runCount })
+      get(countAtom)
+    })
+    function TestComponent() {
+      useAtom(effectAtom)
+      const setCount = useSetAtom(countAtom)
+      return createElement('button', {
+        onClick: () => setCount(increment),
+        children: 'increment',
+      })
+    }
+    render(createElement(TestComponent, null), { wrapper: StrictMode })
+    await delay(0)
+    expect(runCount).toBe(1)
+    await act(async () => screen.getByText('increment').click())
+    expect(runCount).toBe(2)
+  })
+
+  it('[renderHook]', async () => {
+    const countAtom = atom(0)
+    let runCount = 0
+    const effectAtom = atomEffect((get) => {
+      runCount++
+      console.log('[run]', { runCount })
+      get(countAtom)
+    })
+    function useTest() {
+      useAtom(effectAtom)
+      return useAtom(countAtom)[1]
+    }
+    const { result } = renderHook(useTest)
+    const setCount = result.current
+    await delay(0)
+    expect(runCount).toBe(1)
+    await act(() => setCount(increment))
+    expect(runCount).toBe(2)
+  })
+
+  it('[unit]', async () => {
+    const countAtom = atom(0)
+    let runCount = 0
+    const effectAtom = atomEffect((get) => {
+      runCount++
+      console.log('[run]', { runCount })
+      get(countAtom)
+    })
+    const store = createStore()
+    store.sub(effectAtom, () => {})
+    await delay(0)
+    expect(runCount).toBe(1)
+    await act(() => store.set(countAtom, increment))
+    expect(runCount).toBe(2)
+  })
 })
 
 function increment(count: number) {

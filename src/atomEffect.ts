@@ -9,6 +9,7 @@ export function atomEffect(
   const refAtom = atom(() => ({
     mounted: false,
     inProgress: 0,
+    promise: undefined as Promise<void> | undefined,
     cleanup: undefined as CleanupFn | void,
   }))
   if (process.env.NODE_ENV !== 'production') {
@@ -40,20 +41,22 @@ export function atomEffect(
   }
 
   const effectAtom = atom(
-    async (get, { setSelf }) => {
+    (get, { setSelf }) => {
       get(refreshAtom)
       const ref = get(refAtom)
       if (!ref.mounted || ref.inProgress) {
-        return
+        return ref.promise
       }
       ++ref.inProgress
-      try {
-        await void 0
-        ref.cleanup?.()
-        ref.cleanup = effectFn(get, setSelf as Setter)
-      } finally {
-        --ref.inProgress
-      }
+      return (ref.promise = Promise.resolve().then(() => {
+        try {
+          ref.cleanup?.()
+          ref.cleanup = effectFn(get, setSelf as Setter)
+        } finally {
+          --ref.inProgress
+          ref.promise = undefined
+        }
+      }))
     },
     (get, set, ...args: Parameters<Setter>) => {
       const ref = get(refAtom)
