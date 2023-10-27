@@ -634,7 +634,7 @@ describe.only('should not run the effect when the effectAtom is unmounted', () =
     })
     function useTest() {
       useAtom(effectAtom)
-      return useSetAtom(countAtom)
+      return useAtom(countAtom)[1]
     }
     const { result } = renderHook(useTest)
     const setCount = result.current
