@@ -30,7 +30,6 @@ export function atomEffect(
       ref.cleanup?.()
       ref.cleanup = undefined
       ref.mounted = false
-      ref.promise = undefined
     }
   })
   initAtom.onMount = (init) => {
