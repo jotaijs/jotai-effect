@@ -1,6 +1,6 @@
 #  Effect
 
-[jotai-effect](https://github.com/jotaijs/jotai-effect) is a utility package for reactive side effects.
+[jotai-effect](https://jotai.org/docs/integrations/effect) is a utility package for reactive side effects.
 
 ## install
 
@@ -17,10 +17,7 @@ yarn add jotai-effect
 ```ts
 type CleanupFn = () => void
 
-type EffectFn = (
-  get: Getter
-  set: Setter
-) => CleanupFn | void
+type EffectFn = (get: Getter, set: Setter) => CleanupFn | void
 
 function atomEffect(effectFn: EffectFn): Atom<void>
 ```
@@ -62,13 +59,13 @@ After defining an effect using `atomEffect`, it can be integrated within another
 const anAtom = atom((get) => {
   // mounts the atomEffect when anAtom mounts
   get(loggingEffect)
-  // ... other logic
+  // ...
 })
 
 // mounts the atomEffect when the component mounts
 function MyComponent() {
   useAtom(subscriptionEffect)
-  ...
+  // ...
 }
 ```
 
@@ -145,7 +142,7 @@ function MyComponent() {
   ```js
   const enabledAtom = atom(false)
   const countAtom = atom(0)
-  const updateLettersAndNumbers = atom(null, (get, set) => {
+  const updateEnabledAndCount = atom(null, (get, set) => {
     set(enabledAtom, (value) => !value)
     set(countAtom, (value) => value + 1)
   })
@@ -153,7 +150,7 @@ function MyComponent() {
   const combosEffect = atomEffect((get, set) => {
     set(combos, (arr) => [...arr, [get(enabledAtom), get(countAtom)]])
   })
-  store.set(updateLettersAndNumbers)
+  store.set(updateEnabledAndCount)
   store.get(combos) // [[false, 0], [true, 1]]
   ```
 
@@ -234,15 +231,23 @@ Aside from mount events, the effect runs when any of its dependencies change val
   ```js
   atomEffect((get, set) => {
     const count = get(countAtom) // countAtom is an atom dependency
-    const promise = new AbortablePromise((resolve, reject, signal) => {
-      signal.onabort = () => {
-        // async cleanup logic here
+    const abortController = new AbortController()
+    ;(async () => {
+      try {
+        await delay(1000)
+        abortController.signal.throwIfAborted()
+        get(dataAtom); // dataAtom is not an atom dependency
+      } catch(e) {
+        if (e instanceof AbortError) {
+          // async cleanup logic here
+        } else {
+          console.error(e)
+        }
       }
-      get(dataAtom); // dataAtom is not an atom dependency
-      // Your async logic here
-    })
+    })()
     return () => {
-      promise.abort()
+      // abort when countAtom changes
+      abortController.abort(new AbortError())
     }
   })
   ```
@@ -258,11 +263,11 @@ Aside from mount events, the effect runs when any of its dependencies change val
 
   ```js
   atomEffect((get, set) => {
-    // runs once on atom mount
+    // runs once on mount or when valueAtom changes
     // does not update when `idAtom` changes
     const unsubscribe = subscribe((value) => {
-      const id = get(idAtom)
-      set(valueAtom, { id value })
+      const value = get(valueAtom)
+      // ...
     })
     return () => {
       unsubscribe(get(idAtom))
@@ -316,7 +321,7 @@ atomEffects are more appropriate for modeling logic in atoms.
 They are scoped to the store context rather than the component.
 This guarantees that a single effect will be used regardless of how many calls they have.
 
-The same guarantee can be achieved with the useEffect hook if you ensure that the useEffect has only one actioning call.
+The same guarantee can be achieved with the useEffect hook if you ensure that the useEffect is idempotent.
 
 atomEffects are distinguished from useEffect in a few other ways. The can directly react to atom state changes, are resistent to infinite loops, and can be mounted conditionally.
 
