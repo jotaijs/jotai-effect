@@ -20,6 +20,16 @@ it('should run the effect on vanilla store', async () => {
   await waitFor(() => expect(store.get(countAtom)).toBe(0))
 })
 
+it('should not call effect immediately un-subscription', async () => {
+  expect.assertions(1)
+  const store = getDefaultStore()
+  const effect = jest.fn()
+  const effectAtom = atomEffect(effect)
+  const unsub = store.sub(effectAtom, () => void 0)
+  unsub()
+  expect(effect).not.toHaveBeenCalled()
+})
+
 it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)
   const effect = { mount: 0, unmount: 0 }

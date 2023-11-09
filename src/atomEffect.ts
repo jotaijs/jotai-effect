@@ -50,6 +50,7 @@ export function atomEffect(
       ++ref.inProgress
       return (ref.promise = Promise.resolve().then(() => {
         try {
+          if (!ref.mounted) return
           ref.cleanup?.()
           ref.cleanup = effectFn(get, setSelf as Setter)
         } finally {
