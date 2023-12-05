@@ -323,7 +323,7 @@ This guarantees that a single effect will be used regardless of how many calls t
 
 The same guarantee can be achieved with the useEffect hook if you ensure that the useEffect is idempotent.
 
-atomEffects are distinguished from useEffect in a few other ways. The can directly react to atom state changes, are resistent to infinite loops, and can be mounted conditionally.
+atomEffects are distinguished from useEffect in a few other ways. They can directly react to atom state changes, are resistent to infinite loops, and can be mounted conditionally.
 
 #### It's up to you
 

@@ -16,5 +16,6 @@
     "paths": {
       "jotai-effect": ["./src"]
     }
-  }
+  },
+  "exclude": ["dist"]
 }
