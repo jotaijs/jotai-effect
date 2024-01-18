@@ -595,6 +595,25 @@ it('should abort the previous promise', async () => {
   expect(completedRuns).toEqual([0, 2])
 })
 
+it('should not run the effect when the effectAtom is unmounted', async () => {
+  const countAtom = atom(0)
+  let runCount = 0
+  const effectAtom = atomEffect((get) => {
+    runCount++
+    get(countAtom)
+  })
+  function useTest() {
+    useAtom(effectAtom)
+    return useAtom(countAtom)[1]
+  }
+  const { result } = renderHook(useTest, { wrapper })
+  const setCount = result.current
+  await delay(0)
+  expect(runCount).toBe(1)
+  await act(() => setCount(increment))
+  expect(runCount).toBe(2)
+})
+
 function increment(count: number) {
   return count + 1
 }
