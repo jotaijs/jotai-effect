@@ -21,21 +21,26 @@ export function atomEffect(
     refreshAtom.debugPrivate = true
   }
 
-  const initAtom = atom(null, (get, set, mounted: boolean) => {
-    const ref = get(refAtom)
-    if (mounted) {
-      ref.mounted = true
-      set(refreshAtom, (c) => c + 1)
-    } else {
-      ref.cleanup?.()
-      ref.cleanup = undefined
-      ref.mounted = false
+  const initAtom = atom(
+    (get, { setSelf }) => {
+      const ref = get(refAtom)
+      if (ref.mounted) return
+      Promise.resolve().then(() => {
+        setSelf(true)
+      })
+    },
+    (get, set, mounted: boolean) => {
+      const ref = get(refAtom)
+      ref.mounted = mounted
+      if (mounted) {
+        set(refreshAtom, (c) => c + 1)
+      } else {
+        ref.cleanup?.()
+        ref.cleanup = undefined
+      }
     }
-  })
-  initAtom.onMount = (init) => {
-    init(true)
-    return () => init(false)
-  }
+  )
+  initAtom.onMount = (init) => () => init(false)
   if (process.env.NODE_ENV !== 'production') {
     initAtom.debugPrivate = true
   }
