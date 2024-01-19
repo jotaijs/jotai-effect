@@ -64,15 +64,7 @@ export function atomEffect(
         }
       }))
     },
-    (get, set, ...args: Parameters<Setter>) => {
-      const ref = get(refAtom)
-      ++ref.inProgress
-      try {
-        return set(...args)
-      } finally {
-        --ref.inProgress
-      }
-    }
+    (_get, set, ...args: Parameters<Setter>) => set(...args)
   )
   if (process.env.NODE_ENV !== 'production') {
     effectAtom.debugPrivate = true
