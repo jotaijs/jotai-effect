@@ -23,13 +23,12 @@ export function atomEffect(
 
   const initAtom = atom(null, (get, set, mounted: boolean) => {
     const ref = get(refAtom)
+    ref.mounted = mounted
     if (mounted) {
-      ref.mounted = true
       set(refreshAtom, (c) => c + 1)
     } else {
       ref.cleanup?.()
       ref.cleanup = undefined
-      ref.mounted = false
     }
   })
   initAtom.onMount = (init) => {
