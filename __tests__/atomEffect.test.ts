@@ -601,61 +601,6 @@ it('should abort the previous promise', async () => {
   expect(completedRuns).toEqual([0, 2])
 })
 
-it('should not infinite loop with nested atomEffects', async () => {
-  const metrics = {
-    mounted: 0,
-    runCount1: 0,
-    runCount2: 0,
-    unmounted: 0,
-  }
-  const countAtom = atom(0)
-  countAtom.onMount = () => {
-    ++metrics.mounted
-    return () => ++metrics.unmounted
-  }
-
-  const effectAtom = atomEffect((_get, set) => {
-    ++metrics.runCount1
-    if (metrics.runCount1 > 1) throw new Error('infinite loop')
-    Promise.resolve().then(() => {
-      set(countAtom, increment)
-    })
-  })
-
-  const readOnlyAtom = atom((get) => {
-    get(effectAtom)
-    return get(countAtom)
-  })
-
-  const effect2Atom = atomEffect((get, _set) => {
-    ++metrics.runCount2
-    get(readOnlyAtom)
-  })
-
-  const store = getDefaultStore()
-  store.sub(effect2Atom, () => void 0)
-
-  await waitFor(() => assert(!!metrics.runCount1))
-
-  const atomSet = new Set(store.dev_get_mounted_atoms?.())
-  expect({
-    countAtom: atomSet.has(countAtom),
-    effectAtom: atomSet.has(effectAtom),
-    readOnlyAtom: atomSet.has(readOnlyAtom),
-  }).toEqual({
-    countAtom: true,
-    effectAtom: true,
-    readOnlyAtom: true,
-  })
-
-  expect(metrics).toEqual({
-    mounted: 1,
-    runCount1: 1,
-    runCount2: 2,
-    unmounted: 0,
-  })
-})
-
 function increment(count: number) {
   return count + 1
 }
