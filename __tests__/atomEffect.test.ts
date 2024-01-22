@@ -177,6 +177,241 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
   expect(runCount).toBe(2)
 })
 
+it('should allow synchronous infinite loops with opt-in for first run', async () => {
+  expect.assertions(1)
+  let runCount = 0
+  const watchedAtom = atom(0)
+  let done = false
+  const effectAtom = atomEffect((get, { recurse }) => {
+    const value = get(watchedAtom)
+    runCount++
+    if (value >= 3) {
+      done = true
+      return
+    }
+    recurse(watchedAtom, increment)
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await waitFor(() => assert(done))
+  expect({ runCount, watched: store.get(watchedAtom) }).toEqual({
+    runCount: 4,
+    watched: 3,
+  })
+})
+
+it('should allow synchronous infinite loops with opt-in', async () => {
+  expect.assertions(2)
+  let runCount = 0
+  const watchedAtom = atom(0)
+  const effectAtom = atomEffect((get, { recurse }) => {
+    const value = get(watchedAtom)
+    runCount++
+    if (value === 0) {
+      return
+    }
+    if (value >= 5) {
+      return
+    }
+    recurse(watchedAtom, increment)
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await delay(0)
+  store.set(watchedAtom, increment)
+  await waitFor(() => assert(store.get(watchedAtom) === 5))
+  expect(store.get(watchedAtom)).toBe(5)
+  expect(runCount).toBe(6)
+})
+
+it('should allow multiple synchronous infinite loops with opt-in', async () => {
+  expect.assertions(1)
+  let runCount = 0
+  const watchedAtom = atom(0)
+  const effectAtom = atomEffect((get, { recurse }) => {
+    const value = get(watchedAtom)
+    runCount++
+    if (value === 0) {
+      return
+    }
+    if (value >= 3) {
+      return
+    }
+    recurse(watchedAtom, increment)
+    recurse(watchedAtom, increment)
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await delay(0)
+  store.set(watchedAtom, increment)
+  await delay(0)
+  expect({ runCount, value: store.get(watchedAtom) }).toEqual({
+    runCount: 6,
+    value: 5,
+  })
+})
+
+it('should batch while synchronous recursing', async () => {
+  expect.assertions(2)
+  let runCount = 0
+  const lettersAtom = atom('a')
+  const numbersAtom = atom(0)
+  const watchedAtom = atom(0)
+  const lettersAndNumbersAtom = atom([] as string[])
+  const updateAtom = atom(0, (_get, set) => {
+    set(lettersAtom, incrementLetter)
+    set(numbersAtom, increment)
+  })
+  const effectAtom = atomEffect((get, set) => {
+    const letters = get(lettersAtom)
+    const numbers = get(numbersAtom)
+    get(watchedAtom)
+    const thisRunCount = runCount++
+    if (thisRunCount === 0) {
+      return
+    }
+    if (thisRunCount >= 3) {
+      return
+    }
+    set(lettersAndNumbersAtom, (lettersAndNumbers: string[]) => [
+      ...lettersAndNumbers,
+      letters + String(numbers),
+    ])
+    set.recurse(updateAtom)
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await delay(0)
+  store.set(watchedAtom, increment)
+  await delay(0)
+  expect(store.get(lettersAndNumbersAtom)).toEqual(['a0', 'b1'])
+  expect(runCount).toBe(4)
+})
+
+it('should allow asynchronous infinite loops with task delay', async () => {
+  expect.assertions(2)
+  let runCount = 0
+  const watchedAtom = atom(0)
+  let done = false
+  const effectAtom = atomEffect((get, { recurse }) => {
+    const value = get(watchedAtom)
+    runCount++
+    if (value >= 3) {
+      done = true
+      return
+    }
+    delay(0).then(() => {
+      recurse(watchedAtom, increment)
+    })
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await waitFor(() => assert(done))
+  expect(store.get(watchedAtom)).toBe(3)
+  expect(runCount).toBe(4)
+})
+
+it('should allow asynchronous infinite loops with microtask delay', async () => {
+  expect.assertions(2)
+  let runCount = 0
+  const watchedAtom = atom(0)
+  watchedAtom.debugLabel = 'watchedAtom' // remove
+  let done = false
+  const effectAtom = atomEffect((get, { recurse }) => {
+    const value = get(watchedAtom)
+    runCount++
+    if (value >= 3) {
+      done = true
+      return
+    }
+    Promise.resolve().then(() => {
+      recurse(watchedAtom, increment)
+    })
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  // await waitFor(() => assert(done))
+  done
+  await delay(500)
+  expect(store.get(watchedAtom)).toBe(3)
+  expect(runCount).toBe(4)
+})
+
+it('should work with both recurse and set', async () => {
+  expect.assertions(3)
+  let runCount = 0
+  const watchedAtom = atom(0)
+  const countAtom = atom(0)
+  const effectAtom = atomEffect((get, set) => {
+    const value = get(watchedAtom)
+    get(countAtom)
+    runCount++
+    if (value === 0 || value % 3) {
+      set.recurse(watchedAtom, increment)
+      set(countAtom, increment)
+      return
+    }
+    set(watchedAtom, increment)
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await waitFor(() => assert(store.get(countAtom) === 3))
+  expect(store.get(countAtom)).toBe(3)
+  expect(store.get(watchedAtom)).toBe(4)
+  expect(runCount).toBe(4)
+})
+
+it('should disallow synchronous infinite loops in cleanup', async () => {
+  expect.assertions(3)
+  const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  let runCount = 0
+  const watchedAtom = atom(0)
+  const anotherAtom = atom(0)
+  const effectAtom = atomEffect((get, { recurse }) => {
+    get(watchedAtom)
+    get(anotherAtom)
+    runCount++
+    return () => {
+      recurse(watchedAtom, increment)
+    }
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await delay(0)
+  store.set(anotherAtom, increment)
+  await delay(0)
+  expect(warnSpy).toHaveBeenCalled()
+  expect(store.get(watchedAtom)).toBe(0)
+  expect(runCount).toBe(2)
+  warnSpy.mockRestore()
+})
+
+// FIXME: is there a way to disallow asynchronous infinite loops in cleanup?
+
+it('should return value from recurse', async () => {
+  expect.assertions(1)
+  const countAtom = atom(0)
+  const incrementCountAtom = atom(null, (get, set) => {
+    set(countAtom, increment)
+    return get(countAtom)
+  })
+  const results = [] as number[]
+  let done = false
+  const effectAtom = atomEffect((get, { recurse }) => {
+    const value = get(countAtom)
+    if (value < 5) {
+      const result = recurse(incrementCountAtom)
+      results.unshift(result)
+      done = true
+      return
+    }
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await waitFor(() => assert(done))
+  expect(results).toEqual([1, 2, 3, 4, 5])
+})
+
 it('should conditionally run the effect and cleanup when effectAtom is unmounted', async () => {
   expect.assertions(6)
 
