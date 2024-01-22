@@ -6,22 +6,6 @@ import { atomEffect } from '../src/atomEffect'
 
 const wrapper = StrictMode
 
-it('should run the effect on vanilla store', async () => {
-  const store = getDefaultStore()
-  const countAtom = atom(0)
-  const effectAtom = atomEffect((_, set) => {
-    set(countAtom, increment)
-    return () => {
-      set(countAtom, 0)
-    }
-  })
-  const unsub = store.sub(effectAtom, () => void 0)
-  expect(store.get(countAtom)).toBe(0)
-  await waitFor(() => expect(store.get(countAtom)).toBe(1))
-  unsub()
-  await waitFor(() => expect(store.get(countAtom)).toBe(0))
-})
-
 it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)
   const effect = { mount: 0, unmount: 0 }
@@ -44,7 +28,6 @@ it('should run the effect on mount and cleanup on unmount once', async () => {
   await waitFor(() => assert(hasRun && hasMounted))
   // effect does not return a value
   expect(result.current).toBe(undefined)
-
   // initial render should run the effect
   expect(effect.mount).toBe(1)
   rerender()
@@ -124,32 +107,33 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
 })
 
 it('should not cause infinite loops when effect updates the watched atom', async () => {
-  expect.assertions(2)
+  expect.assertions(1)
   const watchedAtom = atom(0)
   let runCount = 0
   const effectAtom = atomEffect((get, set) => {
     get(watchedAtom)
     runCount++
-    set(watchedAtom, get(watchedAtom) + 1)
+    set(watchedAtom, increment)
+    return () => {
+      set(watchedAtom, (c) => c - 1)
+    }
   })
+  const store = getDefaultStore()
   function useTest() {
-    useAtom(effectAtom)
-    const setCount = useSetAtom(watchedAtom)
-    return () => act(async () => setCount(increment))
+    useAtom(effectAtom, { store })
   }
-  const { result, rerender } = renderHook(useTest, { wrapper: StrictMode })
+  const { rerender } = renderHook(useTest, { wrapper })
 
   // initial render should run the effect once
   await waitFor(() => assert(runCount === 1))
-
-  rerender()
-
   // rerender should not run the effect again
-  expect(runCount).toBe(1)
+  rerender()
+  await delay(0)
 
-  // changing the value should run the effect again one time
-  await result.current()
-  expect(runCount).toBe(2)
+  expect({ runCount, watched: store.get(watchedAtom) }).toEqual({
+    runCount: 1,
+    watched: 1,
+  })
 })
 
 it('should not cause infinite loops when effect updates the watched atom asynchronous', async () => {
@@ -160,7 +144,7 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
     get(watchedAtom)
     runCount++
     setTimeout(() => {
-      set(watchedAtom, get(watchedAtom) + 1)
+      set(watchedAtom, increment)
     }, 0)
   })
   function useTest() {
@@ -168,7 +152,7 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
     const setCount = useSetAtom(watchedAtom)
     return () => act(async () => setCount(increment))
   }
-  const { result } = renderHook(useTest, { wrapper: StrictMode })
+  const { result } = renderHook(useTest, { wrapper })
   await delay(0)
   // initial render should run the effect once
   await waitFor(() => assert(runCount === 1))
@@ -202,7 +186,7 @@ it('should conditionally run the effect and cleanup when effectAtom is unmounted
     return useSetAtom(booleanAtom)
   }
 
-  const { result } = renderHook(useTest, { wrapper: StrictMode })
+  const { result } = renderHook(useTest, { wrapper })
   const setBoolean = result.current
   const toggleBoolean = () => act(async () => setBoolean((prev) => !prev))
 
@@ -246,7 +230,7 @@ describe('should correctly process synchronous updates to the same atom', () => 
       }
       return { count, incrementCount }
     }
-    const { result } = renderHook(useTest, { wrapper: StrictMode })
+    const { result } = renderHook(useTest, { wrapper })
     return { result, runCount }
   }
 
@@ -417,7 +401,7 @@ it('should not batch effect setStates', async () => {
   const { result: valueResult } = renderHook(() => useAtomValue(derivedAtom), {
     wrapper,
   })
-  renderHook(() => useAtomValue(effectAtom), { wrapper: StrictMode })
+  renderHook(() => useAtomValue(effectAtom), { wrapper })
   const { result } = renderHook(() => useSetAtom(triggerAtom), { wrapper })
   const setTrigger = result.current
 
@@ -456,7 +440,7 @@ it('should batch synchronous updates as a single transaction', async () => {
     const lettersAndNumbers = useAtomValue(lettersAndNumbersAtom)
     return { setLetters, setNumbers, lettersAndNumbers }
   }
-  const { result } = renderHook(useTest, { wrapper: StrictMode })
+  const { result } = renderHook(useTest, { wrapper })
   const { setLetters, setNumbers } = result.current
   await waitFor(() => assert(!!runCount))
   expect(runCount).toBe(1)
@@ -508,7 +492,7 @@ it('should run the effect once even if the effect is mounted multiple times', as
     const setNumbers = useSetAtom(numbersAtom)
     return { setLetters, setNumbers }
   }
-  const { result } = renderHook(useTest, { wrapper: StrictMode })
+  const { result } = renderHook(useTest, { wrapper })
   const { setLetters, setNumbers } = result.current
   await waitFor(() => assert(!!runCount))
   expect(runCount).toBe(1)
@@ -569,7 +553,7 @@ it('should abort the previous promise', async () => {
     useAtomValue(effectAtom)
     return useSetAtom(countAtom)
   }
-  const { result } = renderHook(useTest, { wrapper: StrictMode })
+  const { result } = renderHook(useTest, { wrapper })
   const setCount = result.current
   await waitFor(() => assert(!!runCount))
 

@@ -263,14 +263,15 @@ Aside from mount events, the effect runs when any of its dependencies change val
 
   ```js
   atomEffect((get, set) => {
-    // runs once on mount or when valueAtom changes
+    // runs once on mount
     // does not update when `idAtom` changes
-    const unsubscribe = subscribe((value) => {
+    const unsubscribe = subscribe((valueAtom) => {
       const value = get(valueAtom)
       // ...
     })
     return () => {
-      unsubscribe(get(idAtom))
+      const id = get(idAtom)
+      unsubscribe(id)
     }
   })
   ```
@@ -317,7 +318,7 @@ For synchronizing component props and state with a Jotai atom, you should use th
 For setting up global side-effects, deciding between useEffect and atomEffect comes down to developer preference.
 Whether you prefer to build this logic directly into the component or build this logic into the Jotai state model depends on what mental model you adopt.
 
-atomEffects are more appropriate for modeling logic in atoms.
+atomEffects are more appropriate for modeling behavior in atoms.
 They are scoped to the store context rather than the component.
 This guarantees that a single effect will be used regardless of how many calls they have.
 

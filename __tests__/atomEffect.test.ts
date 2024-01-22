@@ -20,7 +20,7 @@ it('should run the effect on vanilla store', async () => {
   await waitFor(() => expect(store.get(countAtom)).toBe(0))
 })
 
-it('should not call effect immediately un-subscription', async () => {
+it('should not call effect if immediately unsubscribed', async () => {
   expect.assertions(1)
   const store = getDefaultStore()
   const effect = jest.fn()
@@ -138,25 +138,18 @@ it('should not cause infinite loops when effect updates the watched atom', async
   const effectAtom = atomEffect((get, set) => {
     get(watchedAtom)
     runCount++
-    set(watchedAtom, get(watchedAtom) + 1)
+    set(watchedAtom, increment)
   })
-  function useTest() {
-    useAtom(effectAtom)
-    const setCount = useSetAtom(watchedAtom)
-    return () => act(async () => setCount(increment))
-  }
-  const { result, rerender } = renderHook(useTest)
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
 
+  const incrementWatched = async () => store.set(watchedAtom, increment)
+  await delay(0)
   // initial render should run the effect once
   await waitFor(() => assert(runCount === 1))
-
-  rerender()
-
-  // rerender should not run the effect again
   expect(runCount).toBe(1)
-
   // changing the value should run the effect again one time
-  await result.current()
+  await incrementWatched()
   expect(runCount).toBe(2)
 })
 
@@ -168,21 +161,18 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
     get(watchedAtom)
     runCount++
     setTimeout(() => {
-      set(watchedAtom, get(watchedAtom) + 1)
+      set(watchedAtom, increment)
     }, 0)
   })
-  function useTest() {
-    useAtom(effectAtom)
-    const setCount = useSetAtom(watchedAtom)
-    return () => act(async () => setCount(increment))
-  }
-  const { result } = renderHook(useTest)
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
   await delay(0)
   // initial render should run the effect once
   await waitFor(() => assert(runCount === 1))
 
   // changing the value should run the effect again one time
-  await result.current()
+  store.set(watchedAtom, increment)
+
   await delay(0)
   expect(runCount).toBe(2)
 })
@@ -455,24 +445,18 @@ it('should batch synchronous updates as a single transaction', async () => {
       letters + String(numbers),
     ])
   })
-  function useTest() {
-    useAtomValue(effectAtom)
-    const setLetters = useSetAtom(lettersAtom)
-    const setNumbers = useSetAtom(numbersAtom)
-    const lettersAndNumbers = useAtomValue(lettersAndNumbersAtom)
-    return { setLetters, setNumbers, lettersAndNumbers }
-  }
-  const { result } = renderHook(useTest)
-  const { setLetters, setNumbers } = result.current
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+
   await waitFor(() => assert(!!runCount))
   expect(runCount).toBe(1)
-  expect(result.current.lettersAndNumbers).toEqual(['a0'])
+  expect(store.get(lettersAndNumbersAtom)).toEqual(['a0'])
   await act(async () => {
-    setLetters(incrementLetter)
-    setNumbers(increment)
+    store.set(lettersAtom, incrementLetter)
+    store.set(numbersAtom, increment)
   })
   expect(runCount).toBe(2)
-  expect(result.current.lettersAndNumbers).toEqual(['a0', 'b1'])
+  expect(store.get(lettersAndNumbersAtom)).toEqual(['a0', 'b1'])
 })
 
 it('should run the effect once even if the effect is mounted multiple times', async () => {
