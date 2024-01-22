@@ -17,7 +17,7 @@ yarn add jotai-effect
 ```ts
 type CleanupFn = () => void
 
-type EffectFn = (get: Getter, set: Setter) => CleanupFn | void
+type EffectFn = (get: Getter, set: Setter & { recurse: Setter }) => CleanupFn | void
 
 function atomEffect(effectFn: EffectFn): Atom<void>
 ```
@@ -90,7 +90,7 @@ function MyComponent() {
   </details>
 
 - **Resistent To Infinite Loops:**
-  `atomEffect` does not rerun when it changes a value that it is watching.
+  `atomEffect` does not rerun when it changes a value that it is watching with `set`.
 
   <!-- prettier-ignore -->
   <details style="cursor: pointer; user-select: none;">
@@ -102,6 +102,24 @@ function MyComponent() {
     // this will not infinite loop
     get(countAtom) // after mount, count will be 1
     set(countAtom, increment)
+  })
+  ```
+- **Supports Recursion:**
+  Recursion is supported with `set.recurse` for both sync and async use cases, but is not supported in the cleanup function.
+
+  <!-- prettier-ignore -->
+  <details style="cursor: pointer; user-select: none;">
+    <summary>Example</summary>
+
+  ```js
+  const countAtom = atom(0)
+  atomEffect((get, set) => {
+    // increments count once per second
+    const count = get(countAtom)
+    const timeoutId = setTimeout(() => {
+      set.recurse(countAtom, increment)
+    }, 1000)
+    return () => clearTimeout(timeoutId)
   })
   ```
 

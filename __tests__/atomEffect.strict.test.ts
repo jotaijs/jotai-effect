@@ -163,6 +163,32 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
   expect(runCount).toBe(2)
 })
 
+it('should allow synchronous infinite loops with opt-in for first run', async () => {
+  expect.assertions(1)
+  let runCount = 0
+  const watchedAtom = atom(0)
+  const effectAtom = atomEffect((get, { recurse }) => {
+    const value = get(watchedAtom)
+    runCount++
+    if (value < 5) {
+      recurse(watchedAtom, increment)
+    }
+  })
+  const store = getDefaultStore()
+  function useTest() {
+    useAtom(effectAtom, { store })
+    const setCount = useSetAtom(watchedAtom, { store })
+    return () => act(async () => setCount(increment))
+  }
+  const { result } = renderHook(useTest, { wrapper })
+  await delay(0)
+  await act(async () => result.current())
+  await delay(0)
+  expect({ runCount, watched: store.get(watchedAtom) }).toEqual({
+    runCount: 7, // extra run for strict mode render
+    watched: 6,
+  })
+})
 it('should conditionally run the effect and cleanup when effectAtom is unmounted', async () => {
   expect.assertions(6)
 
