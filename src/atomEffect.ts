@@ -43,12 +43,20 @@ export function atomEffect(
   })
   initAtom.onMount = (init) => {
     init(true)
-    return () => init(false)
+    return () => {
+      init(false)
+    }
   }
   const effectAtom = atom((get) => {
     get(refreshAtom)
     const ref = get(refAtom)
-    if (!ref.mounted || ref.recursing || (ref.inProgress && !ref.refreshing)) {
+    if (!ref.mounted) {
+      return ref.promise
+    }
+    if (ref.recursing) {
+      return ref.promise
+    }
+    if (ref.inProgress && !ref.refreshing) {
       return ref.promise
     }
     const currDeps = new Map<Atom<unknown>, unknown>()
@@ -78,14 +86,18 @@ export function atomEffect(
       } finally {
         ref.recursing = false
         const depsChanged = Array.from(currDeps).some(([a, v]) => get(a) !== v)
-        if (depsChanged) ref.refresh()
+        if (depsChanged) {
+          ref.refresh()
+        }
       }
     }
     ++ref.inProgress
     const effector = () => {
       try {
         ref.refreshing = false
-        if (!ref.mounted) return
+        if (!ref.mounted) {
+          return
+        }
         try {
           ref.fromCleanup = true
           ref.cleanup?.()
