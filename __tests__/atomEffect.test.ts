@@ -876,6 +876,22 @@ it.skip('should not infinite loop with nested atomEffects', async () => {
   })
 })
 
+it('should not rerun with get.peek', async () => {
+  expect.assertions(1)
+  const countAtom = atom(0)
+  let runCount = 0
+  const effectAtom = atomEffect((get) => {
+    get.peek(countAtom)
+    runCount++
+  })
+  const store = getDefaultStore()
+  store.sub(effectAtom, () => void 0)
+  await waitFor(() => assert(runCount === 1))
+  store.set(countAtom, increment)
+  await delay(0)
+  expect(runCount).toBe(1)
+})
+
 function increment(count: number) {
   return count + 1
 }
