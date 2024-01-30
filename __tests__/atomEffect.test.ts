@@ -177,7 +177,7 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
   expect(runCount).toBe(2)
 })
 
-it('should allow synchronous infinite loops with opt-in for first run', async () => {
+it('should allow synchronous recursion with set.recurse for first run', async () => {
   expect.assertions(1)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -200,7 +200,7 @@ it('should allow synchronous infinite loops with opt-in for first run', async ()
   })
 })
 
-it('should allow synchronous infinite loops with opt-in', async () => {
+it('should allow synchronous recursion with set.recurse', async () => {
   expect.assertions(2)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -224,7 +224,7 @@ it('should allow synchronous infinite loops with opt-in', async () => {
   expect(runCount).toBe(6)
 })
 
-it('should allow multiple synchronous infinite loops with opt-in', async () => {
+it('should allow multiple synchronous recursion with set.recurse', async () => {
   expect.assertions(1)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -251,7 +251,7 @@ it('should allow multiple synchronous infinite loops with opt-in', async () => {
   })
 })
 
-it('should batch while synchronous recursing', async () => {
+it('should batch updates during synchronous recursion with set.recurse', async () => {
   expect.assertions(2)
   let runCount = 0
   const lettersAtom = atom('a')
@@ -288,7 +288,7 @@ it('should batch while synchronous recursing', async () => {
   expect(runCount).toBe(4)
 })
 
-it('should allow asynchronous infinite loops with task delay', async () => {
+it('should allow asynchronous recursion with task delay with set.recurse', async () => {
   expect.assertions(2)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -311,7 +311,7 @@ it('should allow asynchronous infinite loops with task delay', async () => {
   expect(runCount).toBe(4)
 })
 
-it('should allow asynchronous infinite loops with microtask delay', async () => {
+it('should allow asynchronous recursion with microtask delay with set.recurse', async () => {
   expect.assertions(2)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -337,7 +337,7 @@ it('should allow asynchronous infinite loops with microtask delay', async () => 
   expect(runCount).toBe(4)
 })
 
-it('should work with both recurse and set', async () => {
+it('should work with both set.recurse and set', async () => {
   expect.assertions(3)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -361,7 +361,7 @@ it('should work with both recurse and set', async () => {
   expect(runCount).toBe(4)
 })
 
-it('should disallow synchronous infinite loops in cleanup', async () => {
+it('should disallow synchronous set.recurse in cleanup', async () => {
   expect.assertions(3)
   const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
   let runCount = 0
@@ -388,7 +388,7 @@ it('should disallow synchronous infinite loops in cleanup', async () => {
 
 // FIXME: is there a way to disallow asynchronous infinite loops in cleanup?
 
-it('should return value from recurse', async () => {
+it('should return value from set.recurse', async () => {
   expect.assertions(1)
   const countAtom = atom(0)
   const incrementCountAtom = atom(null, (get, set) => {

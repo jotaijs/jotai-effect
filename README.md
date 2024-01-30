@@ -5,7 +5,7 @@
 ## install
 
 ```
-yarn add jotai-effect
+npm i jotai-effect
 ```
 
 ## atomEffect
@@ -17,9 +17,12 @@ yarn add jotai-effect
 ```ts
 type CleanupFn = () => void
 
-type EffectFn = (get: Getter, set: Setter & { recurse: Setter }) => CleanupFn | void
+type EffectFn = (
+  get: Getter,
+  set: Setter & { recurse: Setter },
+) => CleanupFn | void
 
-function atomEffect(effectFn: EffectFn): Atom<void>
+declare function atomEffect(effectFn: EffectFn): Atom<void>
 ```
 
 **effectFn** (required): A function for listening to state updates with `get` and writing state updates with `set`. The `effectFn` is useful for creating side effects that interact with other Jotai atoms. You can cleanup these side effects by returning a cleanup function.
@@ -90,7 +93,7 @@ function MyComponent() {
   </details>
 
 - **Resistent To Infinite Loops:**
-  `atomEffect` does not rerun when it changes a value that it is watching with `set`.
+  `atomEffect` does not rerun when it changes a value with `set` that it is watching.
 
   <!-- prettier-ignore -->
   <details style="cursor: pointer; user-select: none;">
@@ -104,6 +107,9 @@ function MyComponent() {
     set(countAtom, increment)
   })
   ```
+
+  </details>
+
 - **Supports Recursion:**
   Recursion is supported with `set.recurse` for both sync and async use cases, but is not supported in the cleanup function.
 
@@ -254,8 +260,8 @@ Aside from mount events, the effect runs when any of its dependencies change val
       try {
         await delay(1000)
         abortController.signal.throwIfAborted()
-        get(dataAtom); // dataAtom is not an atom dependency
-      } catch(e) {
+        get(dataAtom) // dataAtom is not an atom dependency
+      } catch (e) {
         if (e instanceof AbortError) {
           // async cleanup logic here
         } else {
