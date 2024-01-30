@@ -18,7 +18,7 @@ npm i jotai-effect
 type CleanupFn = () => void
 
 type EffectFn = (
-  get: Getter,
+  get: Getter & { peek: Getter },
   set: Setter & { recurse: Setter },
 ) => CleanupFn | void
 
@@ -126,6 +126,23 @@ function MyComponent() {
       set.recurse(countAtom, increment)
     }, 1000)
     return () => clearTimeout(timeoutId)
+  })
+  ```
+
+  </details>
+
+- **Supports Peek:**
+  Read atom data without subscribing to changes with `get.peek`.
+
+  <!-- prettier-ignore -->
+  <details style="cursor: pointer; user-select: none;">
+    <summary>Example</summary>
+
+  ```js
+  const countAtom = atom(0)
+  atomEffect((get, set) => {
+    // will not rerun when countAtom changes
+    const count = get.peek(countAtom)
   })
   ```
 
