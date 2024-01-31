@@ -67,9 +67,7 @@ export function atomEffect(
       currDeps.set(a, value)
       return value
     }
-    getter.peek = (anAtom) => {
-      return ref.get(anAtom)
-    }
+    getter.peek = (anAtom) => ref.get(anAtom)
     const setter: SetterWithRecurse = (...args) => {
       try {
         ++ref.inProgress
