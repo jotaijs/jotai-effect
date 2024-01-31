@@ -2,11 +2,11 @@ import type { Atom, Getter, Setter } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 
 type CleanupFn = () => void
-
+type GetterWithPeek = Getter & { peek: Getter }
 type SetterWithRecurse = Setter & { recurse: Setter }
 
 export function atomEffect(
-  effectFn: (get: Getter, set: SetterWithRecurse) => void | CleanupFn
+  effectFn: (get: GetterWithPeek, set: SetterWithRecurse) => void | CleanupFn
 ) {
   const refAtom = atom(() => ({
     mounted: false,
@@ -17,6 +17,7 @@ export function atomEffect(
     recursing: false,
     refresh: () => {},
     refreshing: false,
+    get: (() => {}) as Getter,
     set: (() => {}) as Setter,
   }))
 
@@ -26,6 +27,7 @@ export function atomEffect(
     const ref = get(refAtom)
     ref.mounted = mounted
     if (mounted) {
+      ref.get = get
       ref.set = set
       ref.refresh = () => {
         try {
@@ -60,11 +62,12 @@ export function atomEffect(
       return ref.promise
     }
     const currDeps = new Map<Atom<unknown>, unknown>()
-    const getter: Getter = (a) => {
+    const getter: GetterWithPeek = (a) => {
       const value = get(a)
       currDeps.set(a, value)
       return value
     }
+    getter.peek = (anAtom) => ref.get(anAtom)
     const setter: SetterWithRecurse = (...args) => {
       try {
         ++ref.inProgress
