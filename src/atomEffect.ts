@@ -19,6 +19,7 @@ export function atomEffect(
     refreshing: false,
     get: (() => {}) as Getter,
     set: (() => {}) as Setter,
+    pendingError: null as null | unknown,
   }))
 
   const refreshAtom = atom(0)
@@ -39,6 +40,7 @@ export function atomEffect(
       }
       set(refreshAtom, (c) => c + 1)
     } else {
+      throwIfPendingError(ref)
       ref.cleanup?.()
       ref.cleanup = undefined
     }
@@ -61,6 +63,7 @@ export function atomEffect(
     if (ref.inProgress && !ref.refreshing) {
       return ref.promise
     }
+    throwIfPendingError(ref)
     const currDeps = new Map<Atom<unknown>, unknown>()
     const getter: GetterWithPeek = (a) => {
       const value = get(a)
@@ -108,6 +111,9 @@ export function atomEffect(
           ref.fromCleanup = false
         }
         ref.cleanup = effectFn(getter, setter)
+      } catch (error) {
+        ref.pendingError = error
+        ref.refresh()
       } finally {
         ref.promise = undefined
         --ref.inProgress
@@ -128,4 +134,12 @@ export function atomEffect(
     get(initAtom)
     get(effectAtom)
   })
+}
+
+function throwIfPendingError(ref: { pendingError: null | unknown }) {
+  if (ref.pendingError !== null) {
+    const error = ref.pendingError
+    ref.pendingError = null
+    throw error
+  }
 }
