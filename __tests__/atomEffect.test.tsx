@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
-import { act, renderHook, waitFor } from '@testing-library/react'
-import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
-import { atom, getDefaultStore } from 'jotai/vanilla'
+import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react'
+import { act, render, renderHook, waitFor } from '@testing-library/react'
+import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
+import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
 
 it('should run the effect on vanilla store', async () => {
@@ -892,6 +892,66 @@ it('should not rerun with get.peek', async () => {
   expect(runCount).toBe(1)
 })
 
+it('should trigger the error boundary when an error is thrown', async () => {
+  expect.assertions(1)
+
+  const effectAtom = atomEffect((_get, _set) => {
+    throw new Error('effect error')
+  })
+  function TestComponent() {
+    useAtomValue(effectAtom)
+    return <div>test</div>
+  }
+  let didThrow = false
+  function wrapper() {
+    return (
+      <ErrorBoundary
+        componentDidCatch={() => (didThrow = true)}
+        children={<TestComponent />}
+      />
+    )
+  }
+  render(<TestComponent />, { wrapper })
+  await waitFor(() => assert(didThrow))
+})
+
+it.only('should trigger an error boundary when an error is thrown in a cleanup', async () => {
+  expect.assertions(1)
+
+  const refreshAtom = atom(0)
+  const effectAtom = atomEffect((get, _set) => {
+    get(refreshAtom)
+    return () => {
+      throw new Error('effect cleanup error')
+    }
+  })
+  const store = createStore()
+  function TestComponent() {
+    useAtomValue(effectAtom)
+    return <div>test</div>
+  }
+  let didThrow = false
+  function wrapper() {
+    return (
+      <Provider store={store}>
+        <ErrorBoundary
+          componentDidCatch={(error: Error, _errorInfo: ErrorInfo) => {
+            if (!didThrow) {
+              expect(error.message).toBe('effect cleanup error')
+            }
+            didThrow = true
+          }}>
+          <TestComponent />
+        </ErrorBoundary>
+      </Provider>
+    )
+  }
+  render(<TestComponent />, { wrapper })
+  await delay(0)
+  act(() => store.set(refreshAtom, increment))
+  await waitFor(() => assert(didThrow))
+})
+
 function increment(count: number) {
   return count + 1
 }
@@ -909,5 +969,31 @@ function delay(ms: number) {
 function assert(value: boolean, message?: string): asserts value {
   if (!value) {
     throw new Error(message ?? 'assertion failed')
+  }
+}
+
+type ErrorBoundaryState = {
+  hasError: boolean
+}
+type ErrorBoundaryProps = {
+  componentDidCatch?: (error: Error, errorInfo: ErrorInfo) => void
+  children: ReactNode
+}
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state = { hasError: false }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error, _errorInfo: ErrorInfo): void {
+    this.props.componentDidCatch?.(error, _errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div>error</div>
+    }
+    return this.props.children
   }
 }
