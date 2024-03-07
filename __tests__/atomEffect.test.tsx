@@ -820,8 +820,7 @@ it('should abort the previous promise', async () => {
   expect(completedRuns).toEqual([0, 2])
 })
 
-// TODO: enable this test when https://github.com/pmndrs/jotai/pull/2347 releases
-it.skip('should not infinite loop with nested atomEffects', async () => {
+it('should not infinite loop with nested atomEffects', async () => {
   const metrics = {
     mounted: 0,
     runCount1: 0,
@@ -913,9 +912,10 @@ it('should trigger the error boundary when an error is thrown', async () => {
   }
   render(<TestComponent />, { wrapper })
   await waitFor(() => assert(didThrow))
+  expect(didThrow).toBe(true)
 })
 
-it.only('should trigger an error boundary when an error is thrown in a cleanup', async () => {
+it('should trigger an error boundary when an error is thrown in a cleanup', async () => {
   expect.assertions(1)
 
   const refreshAtom = atom(0)

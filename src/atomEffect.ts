@@ -24,33 +24,28 @@ export function atomEffect(
 
   const refreshAtom = atom(0)
 
-  const initAtom = atom(null, (get, set, mounted: boolean) => {
+  const initAtom = atom(null, (get, set) => {
     const ref = get(refAtom)
-    ref.mounted = mounted
-    if (mounted) {
-      ref.get = get
-      ref.set = set
-      ref.refresh = () => {
-        try {
-          ref.refreshing = true
-          set(refreshAtom, (c) => c + 1)
-        } finally {
-          ref.refreshing = false
-        }
+    ref.mounted = true
+    ref.get = get
+    ref.set = set
+    ref.refresh = () => {
+      try {
+        ref.refreshing = true
+        set(refreshAtom, (c) => c + 1)
+      } finally {
+        ref.refreshing = false
       }
-      set(refreshAtom, (c) => c + 1)
-    } else {
+    }
+    set(refreshAtom, (c) => c + 1)
+    return () => {
+      ref.mounted = false
       throwIfPendingError(ref)
       ref.cleanup?.()
       ref.cleanup = undefined
     }
   })
-  initAtom.onMount = (init) => {
-    init(true)
-    return () => {
-      init(false)
-    }
-  }
+  initAtom.onMount = (mount) => mount()
   const effectAtom = atom((get) => {
     get(refreshAtom)
     const ref = get(refAtom)
