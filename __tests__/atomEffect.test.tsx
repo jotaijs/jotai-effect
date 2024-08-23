@@ -1,8 +1,15 @@
-import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react'
+import React, {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useEffect,
+} from 'react'
 import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
-import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
+import { type Atom, atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
+
+type AnyAtom = Atom<any>
 
 it('should run the effect on vanilla store', async () => {
   const store = getDefaultStore()
@@ -856,7 +863,13 @@ it('should not infinite loop with nested atomEffects', async () => {
 
   await waitFor(() => assert(!!metrics.runCount1))
 
-  const atomSet = new Set(store.dev_get_mounted_atoms?.())
+  function dev_get_mounted_atoms() {
+    if ('dev_get_mounted_atoms' in store) {
+      return (store.dev_get_mounted_atoms as () => IterableIterator<AnyAtom>)()
+    }
+    return []
+  }
+  const atomSet = new Set(dev_get_mounted_atoms())
   expect({
     countAtom: atomSet.has(countAtom),
     effectAtom: atomSet.has(effectAtom),
