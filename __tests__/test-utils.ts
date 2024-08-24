@@ -20,6 +20,37 @@ export function assert(value: boolean, message?: string): asserts value {
   }
 }
 
+export function waitFor(
+  condition: () => boolean,
+  options?: { interval?: number; timeout?: number }
+): Promise<void>
+export function waitFor(
+  condition: () => void,
+  options?: { interval?: number; timeout?: number }
+): Promise<void>
+export function waitFor(
+  condition: () => boolean | void,
+  { interval = 10, timeout = 1000 } = {}
+) {
+  return new Promise<void>((resolve, reject) => {
+    const intervalId = setInterval(() => {
+      try {
+        if (condition() !== false) {
+          clearInterval(intervalId)
+          clearTimeout(timeoutId)
+          resolve()
+        }
+      } catch {
+        // ignore
+      }
+    }, interval)
+    const timeoutId = setTimeout(() => {
+      clearInterval(intervalId)
+      reject(new Error('timeout'))
+    }, timeout)
+  })
+}
+
 type ErrorBoundaryState = {
   hasError: boolean
 }

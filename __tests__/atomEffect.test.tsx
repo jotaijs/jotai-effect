@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
-import { type Atom, atom, createStore, getDefaultStore } from 'jotai/vanilla'
+import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
 import {
   ErrorBoundary,
@@ -10,8 +10,6 @@ import {
   increment,
   incrementLetter,
 } from './test-utils'
-
-type AnyAtom = Atom<any>
 
 it('should run the effect on vanilla store', async () => {
   const store = getDefaultStore()
@@ -325,12 +323,10 @@ it('should allow asynchronous recursion with microtask delay with set.recurse', 
   let runCount = 0
   const watchedAtom = atom(0)
   watchedAtom.debugLabel = 'watchedAtom' // remove
-  let done = false
   const effectAtom = atomEffect((get, { recurse }) => {
     const value = get(watchedAtom)
     runCount++
     if (value >= 3) {
-      done = true
       return
     }
     Promise.resolve().then(() => {
@@ -339,8 +335,6 @@ it('should allow asynchronous recursion with microtask delay with set.recurse', 
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  // await waitFor(() => assert(done))
-  done
   await delay(500)
   expect(store.get(watchedAtom)).toBe(3)
   expect(runCount).toBe(4)
@@ -865,13 +859,8 @@ it('should not infinite loop with nested atomEffects', async () => {
 
   await waitFor(() => assert(!!metrics.runCount1))
 
-  function dev_get_mounted_atoms() {
-    if ('dev_get_mounted_atoms' in store) {
-      return (store.dev_get_mounted_atoms as () => IterableIterator<AnyAtom>)()
-    }
-    return []
-  }
-  const atomSet = new Set(dev_get_mounted_atoms())
+  if (!('dev4_get_mounted_atoms' in store)) return
+  const atomSet = new Set(store.dev4_get_mounted_atoms())
   expect({
     countAtom: atomSet.has(countAtom),
     effectAtom: atomSet.has(effectAtom),

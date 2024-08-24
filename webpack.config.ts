@@ -1,9 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const HtmlWebpackPlugin = require('html-webpack-plugin')
+import HtmlWebpackPlugin from 'html-webpack-plugin'
 
 const { DIR, EXT = 'ts' } = process.env
 
-module.exports = {
+export default {
   mode: 'development',
   devtool: 'cheap-module-source-map',
   entry: `./examples/${DIR}/src/index.${EXT}`,
