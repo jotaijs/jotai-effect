@@ -75,6 +75,7 @@ export function atomEffect(
         ++ref.inProgress
         return ref.set(...args)
       } finally {
+        Array.from(currDeps.keys(), get)
         --ref.inProgress
       }
     }
