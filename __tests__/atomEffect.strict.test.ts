@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
+import { assert, delay, increment, incrementLetter } from './test-utils'
 
 const wrapper = StrictMode
 
@@ -623,23 +624,3 @@ it('should not run the effect when the effectAtom is unmounted', async () => {
   await act(() => setCount(increment))
   expect(runCount).toBe(2)
 })
-
-function increment(count: number) {
-  return count + 1
-}
-
-function incrementLetter(str: string) {
-  return String.fromCharCode(increment(str.charCodeAt(0)))
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-function assert(value: boolean, message?: string): asserts value {
-  if (!value) {
-    throw new Error(message ?? 'assertion failed')
-  }
-}

@@ -1,13 +1,15 @@
-import React, {
-  Component,
-  type ErrorInfo,
-  type ReactNode,
-  useEffect,
-} from 'react'
+import React, { useEffect } from 'react'
 import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { type Atom, atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
+import {
+  ErrorBoundary,
+  assert,
+  delay,
+  increment,
+  incrementLetter,
+} from './test-utils'
 
 type AnyAtom = Atom<any>
 
@@ -948,7 +950,7 @@ it('should trigger an error boundary when an error is thrown in a cleanup', asyn
     return (
       <Provider store={store}>
         <ErrorBoundary
-          componentDidCatch={(error: Error, _errorInfo: ErrorInfo) => {
+          componentDidCatch={(error, _errorInfo) => {
             if (!didThrow) {
               expect(error.message).toBe('effect cleanup error')
             }
@@ -964,49 +966,3 @@ it('should trigger an error boundary when an error is thrown in a cleanup', asyn
   act(() => store.set(refreshAtom, increment))
   await waitFor(() => assert(didThrow))
 })
-
-function increment(count: number) {
-  return count + 1
-}
-
-function incrementLetter(str: string) {
-  return String.fromCharCode(increment(str.charCodeAt(0)))
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-function assert(value: boolean, message?: string): asserts value {
-  if (!value) {
-    throw new Error(message ?? 'assertion failed')
-  }
-}
-
-type ErrorBoundaryState = {
-  hasError: boolean
-}
-type ErrorBoundaryProps = {
-  componentDidCatch?: (error: Error, errorInfo: ErrorInfo) => void
-  children: ReactNode
-}
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state = { hasError: false }
-
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true }
-  }
-
-  componentDidCatch(error: Error, _errorInfo: ErrorInfo): void {
-    this.props.componentDidCatch?.(error, _errorInfo)
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <div>error</div>
-    }
-    return this.props.children
-  }
-}

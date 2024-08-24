@@ -12,7 +12,7 @@ npm i jotai-effect
 
 `atomEffect` is a utility function for declaring side effects and synchronizing atoms in Jotai. It is useful for observing and reacting to state changes.
 
-## Parameters
+### Parameters
 
 ```ts
 type CleanupFn = () => void
@@ -27,7 +27,7 @@ declare function atomEffect(effectFn: EffectFn): Atom<void>
 
 **effectFn** (required): A function for listening to state updates with `get` and writing state updates with `set`. The `effectFn` is useful for creating side effects that interact with other Jotai atoms. You can cleanup these side effects by returning a cleanup function.
 
-## Usage
+### Usage
 
 Subscribe to Atom Changes
 
@@ -54,7 +54,7 @@ const subscriptionEffect = atomEffect((get, set) => {
 })
 ```
 
-## Mounting with Atoms or Hooks
+### Mounting with Atoms or Hooks
 
 After defining an effect using `atomEffect`, it can be integrated within another atom's read function or passed to Jotai hooks.
 
@@ -74,7 +74,7 @@ function MyComponent() {
 
 <CodeSandbox id="tg9xsf" />
 
-## The `atomEffect` behavior
+### The `atomEffect` behavior
 
 - **Cleanup Function:**
   The cleanup function is invoked on unmount or before re-evaluation.
@@ -342,9 +342,42 @@ Aside from mount events, the effect runs when any of its dependencies change val
 
   </details>
 
-### Comparison with useEffect
+## withAtomEffect
 
-#### Component Side Effects
+`withAtomEffect` is a utility to define an effect that is bound to the target atom. This is useful for creating effects that are active when the target atom is mounted.
+
+### Parameters
+
+```ts
+declare function withAtomEffect<T>(
+  targetAtom: Atom<T>,
+  effectFn: EffectFn,
+): Atom<T>
+```
+
+**targetAtom** (required): The atom to which the effect is mounted.
+
+**effectFn** (required): A function for listening to state updates with `get` and writing state updates with `set`.
+
+**Returns:** An atom that is equivalent to the target atom but with the effect mounted.
+
+### Usage
+
+```js
+import { withAtomEffect } from 'jotai-effect'
+
+const anAtom = atom(0)
+const loggingAtom = withAtomEffect(anAtom, (get, set) => {
+  // runs on mount or whenever anAtom changes
+  const value = get(anAtom)
+  loggingService.setValue(value)
+})
+```
+
+
+## Comparison with useEffect
+
+### Component Side Effects
 
 [useEffect](https://react.dev/reference/react/useEffect) is a React Hook that lets you synchronize a component with an external system.
 
@@ -354,7 +387,7 @@ Each call to a hook has a completely isolated state.
 This isolation can be referred to as _component-scoped_.
 For synchronizing component props and state with a Jotai atom, you should use the useEffect hook.
 
-#### Global Side Effects
+### Global Side Effects
 
 For setting up global side-effects, deciding between useEffect and atomEffect comes down to developer preference.
 Whether you prefer to build this logic directly into the component or build this logic into the Jotai state model depends on what mental model you adopt.
@@ -367,7 +400,7 @@ The same guarantee can be achieved with the useEffect hook if you ensure that th
 
 atomEffects are distinguished from useEffect in a few other ways. They can directly react to atom state changes, are resistent to infinite loops, and can be mounted conditionally.
 
-#### It's up to you
+### It's up to you
 
 Both useEffect and atomEffect have their own advantages and applications. Your project’s specific needs and your comfort level should guide your selection.
 Always lean towards an approach that gives you a smoother, more intuitive development experience. Happy coding!

@@ -4,6 +4,10 @@ import { atom } from 'jotai/vanilla'
 type CleanupFn = () => void
 type GetterWithPeek = Getter & { peek: Getter }
 type SetterWithRecurse = Setter & { recurse: Setter }
+export type EffectFn = (
+  get: GetterWithPeek,
+  set: SetterWithRecurse
+) => void | CleanupFn
 
 export function atomEffect(
   effectFn: (get: GetterWithPeek, set: SetterWithRecurse) => void | CleanupFn
