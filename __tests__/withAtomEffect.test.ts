@@ -22,6 +22,8 @@ describe('withAtomEffect', () => {
     store.sub(enhancedAtom, () => {})
     store.set(enhancedAtom, 5)
     expect(store.get(enhancedAtom)).toBe(5)
+    store.set(enhancedAtom, (prev) => prev + 1)
+    expect(store.get(enhancedAtom)).toBe(6)
   })
 
   it('calls effect on initial use and on dependencies change', async () => {

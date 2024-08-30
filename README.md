@@ -1,6 +1,6 @@
 #  Effect
 
-[jotai-effect](https://jotai.org/docs/integrations/effect) is a utility package for reactive side effects.
+[jotai-effect](https://jotai.org/docs/extensions/effect) is a utility package for reactive side effects.
 
 ## install
 
@@ -92,7 +92,7 @@ function MyComponent() {
 
   </details>
 
-- **Resistent To Infinite Loops:**
+- **Resistant To Infinite Loops:**
   `atomEffect` does not rerun when it changes a value with `set` that it is watching.
 
   <!-- prettier-ignore -->
@@ -344,7 +344,7 @@ Aside from mount events, the effect runs when any of its dependencies change val
 
 ## withAtomEffect
 
-`withAtomEffect` is a utility to define an effect that is bound to the target atom. This is useful for creating effects that are active when the target atom is mounted.
+`withAtomEffect` binds an effect to a clone of the target atom. This is useful for creating effects that are active when the clone of the target atom is mounted.
 
 ### Parameters
 
@@ -355,25 +355,25 @@ declare function withAtomEffect<T>(
 ): Atom<T>
 ```
 
-**targetAtom** (required): The atom to which the effect is mounted.
+**targetAtom** (required): The atom to which the effect is bound.
 
 **effectFn** (required): A function for listening to state updates with `get` and writing state updates with `set`.
 
-**Returns:** An atom that is equivalent to the target atom but with the effect mounted.
+**Returns:** An atom that is equivalent to the target atom but having a bound effect.
 
 ### Usage
 
 ```js
 import { withAtomEffect } from 'jotai-effect'
 
-const anAtom = atom(0)
-const loggingAtom = withAtomEffect(anAtom, (get, set) => {
-  // runs on mount or whenever anAtom changes
-  const value = get(anAtom)
-  loggingService.setValue(value)
+const valuesAtom = withAtomEffect(atom(null), (get, set) => {
+  // runs when valuesAtom is mounted
+  const unsubscribe = subscribe((value) => {
+    set(valuesAtom, value)
+  })
+  return unsubscribe
 })
 ```
-
 
 ## Comparison with useEffect
 
