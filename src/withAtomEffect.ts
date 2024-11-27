@@ -1,9 +1,13 @@
 import type { Atom } from 'jotai/vanilla'
-import { type EffectFn, atomEffect } from './atomEffect'
+import { atomEffect } from './atomEffect'
+
+type Effect = typeof atomEffect extends (effect: infer E) => Atom<infer _>
+  ? E
+  : never
 
 export function withAtomEffect<T extends Atom<any>>(
   targetAtom: T,
-  effectFn: EffectFn
+  effectFn: Effect
 ): T {
   const effectAtom = atomEffect(effectFn)
   const descriptors = Object.getOwnPropertyDescriptors(targetAtom)

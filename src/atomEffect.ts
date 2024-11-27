@@ -1,68 +1,75 @@
 import type { Atom, Getter, Setter } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 
-type CleanupFn = () => void
+type Cleanup = () => void
 type GetterWithPeek = Getter & { peek: Getter }
 type SetterWithRecurse = Setter & { recurse: Setter }
-export type EffectFn = (
-  get: GetterWithPeek,
-  set: SetterWithRecurse
-) => void | CleanupFn
+type Ref = {
+  /** inProgress */
+  i: number
+  /** mounted */
+  m: boolean
+  /** promise */
+  p: Promise<void> | undefined
+  /** pending error */
+  e?: unknown
+  /** cleanup */
+  c: Cleanup | void
+  /** from cleanup */
+  fc: boolean
+  /** is recursing */
+  irc: boolean
+  /** is refreshing */
+  irf: boolean
+  get: Getter
+  set: Setter
+}
 
 export function atomEffect(
-  effectFn: (get: GetterWithPeek, set: SetterWithRecurse) => void | CleanupFn
-) {
-  const refAtom = atom(() => ({
-    mounted: false,
-    inProgress: 0,
-    promise: undefined as Promise<void> | undefined,
-    cleanup: undefined as CleanupFn | void,
-    fromCleanup: false,
-    recursing: false,
-    refresh: () => {},
-    refreshing: false,
-    get: (() => {}) as Getter,
-    set: (() => {}) as Setter,
-    pendingError: null as null | unknown,
-  }))
-
+  effect: (get: GetterWithPeek, set: SetterWithRecurse) => void | Cleanup
+): Atom<void> {
   const refreshAtom = atom(0)
-
-  const initAtom = atom(null, (get, set) => {
-    const ref = get(refAtom)
-    ref.mounted = true
-    ref.get = get
-    ref.set = set
-    ref.refresh = () => {
-      try {
-        ref.refreshing = true
-        set(refreshAtom, (c) => c + 1)
-      } finally {
-        ref.refreshing = false
+  const refAtom = atom(
+    (): Ref => ({
+      i: 0,
+      m: false,
+      p: undefined as Promise<void> | undefined,
+      c: undefined as Cleanup | void,
+      fc: false,
+      irc: false,
+      irf: false,
+      get: (() => {}) as Getter,
+      set: (() => {}) as Setter,
+    }),
+    (get, set) => {
+      const ref = get(refAtom)
+      Object.assign(ref, { m: true, get, set })
+      set(refreshAtom, (c) => c + 1)
+      return () => {
+        ref.m = false
+        cleanup(ref)
+        throwPendingError(ref)
       }
     }
-    set(refreshAtom, (c) => c + 1)
-    return () => {
-      ref.mounted = false
-      throwIfPendingError(ref)
-      ref.cleanup?.()
-      ref.cleanup = undefined
-    }
-  })
-  initAtom.onMount = (mount) => mount()
+  )
+  refAtom.onMount = (mount) => mount()
+  if (process.env.NODE_ENV !== 'production') {
+    Object.defineProperty(refreshAtom, 'debugLabel', {
+      get: () => `${effectAtom.debugLabel ?? 'effect'}:refresh`,
+    })
+    refreshAtom.debugPrivate = true
+    Object.defineProperty(refAtom, 'debugLabel', {
+      get: () => `${effectAtom.debugLabel ?? 'effect'}:ref`,
+    })
+    refAtom.debugPrivate = true
+  }
   const effectAtom = atom((get) => {
     get(refreshAtom)
     const ref = get(refAtom)
-    if (!ref.mounted) {
-      return ref.promise
+    if (!ref.m || ref.irc || (ref.i && !ref.irf)) {
+      return ref.p
     }
-    if (ref.recursing) {
-      return ref.promise
-    }
-    if (ref.inProgress && !ref.refreshing) {
-      return ref.promise
-    }
-    throwIfPendingError(ref)
+    throwPendingError(ref)
     const currDeps = new Map<Atom<unknown>, unknown>()
     const getter: GetterWithPeek = (a) => {
       const value = get(a)
@@ -72,74 +79,75 @@ export function atomEffect(
     getter.peek = (anAtom) => ref.get(anAtom)
     const setter: SetterWithRecurse = (...args) => {
       try {
-        ++ref.inProgress
+        ++ref.i
         return ref.set(...args)
       } finally {
         Array.from(currDeps.keys(), get)
-        --ref.inProgress
+        --ref.i
       }
     }
     setter.recurse = (anAtom, ...args) => {
-      if (ref.fromCleanup) {
+      if (ref.fc) {
         if (process.env.NODE_ENV !== 'production') {
-          console.warn('cannot recurse inside cleanup')
+          throw new Error('set.recurse is not allowed in cleanup')
         }
         return undefined as any
       }
       try {
-        ref.recursing = true
+        ref.irc = true
         return ref.set(anAtom, ...args)
       } finally {
-        ref.recursing = false
-        const depsChanged = Array.from(currDeps).some(([a, v]) => get(a) !== v)
+        ref.irc = false
+        const depsChanged = Array.from(currDeps).some(areDifferent)
         if (depsChanged) {
-          ref.refresh()
+          refresh(ref)
         }
       }
     }
-    ++ref.inProgress
-    const effector = () => {
+    function areDifferent([a, v]: [Atom<unknown>, unknown]) {
+      return get(a) !== v
+    }
+    ++ref.i
+    function runEffect() {
       try {
-        ref.refreshing = false
-        if (!ref.mounted) {
-          return
-        }
-        try {
-          ref.fromCleanup = true
-          ref.cleanup?.()
-        } finally {
-          ref.fromCleanup = false
-        }
-        ref.cleanup = effectFn(getter, setter)
+        ref.irf = false
+        if (!ref.m) return
+        cleanup(ref)
+        ref.c = effect(getter, setter)
       } catch (error) {
-        ref.pendingError = error
-        ref.refresh()
+        ref.e = error
+        refresh(ref)
       } finally {
-        ref.promise = undefined
-        --ref.inProgress
+        ref.p = undefined
+        --ref.i
       }
     }
-    return ref.refreshing
-      ? effector()
-      : (ref.promise = Promise.resolve().then(effector))
+    return ref.irf ? runEffect() : (ref.p = Promise.resolve().then(runEffect))
   })
-  if (process.env.NODE_ENV !== 'production') {
-    refAtom.debugPrivate = true
-    refreshAtom.debugPrivate = true
-    initAtom.debugPrivate = true
-    effectAtom.debugPrivate = true
+  return effectAtom
+  function refresh(ref: Ref) {
+    try {
+      ref.irf = true
+      ref.set(refreshAtom, (c) => c + 1)
+    } finally {
+      ref.irf = false
+    }
   }
-
-  return atom((get) => {
-    get(initAtom)
-    get(effectAtom)
-  })
-}
-
-function throwIfPendingError(ref: { pendingError: null | unknown }) {
-  if (ref.pendingError !== null) {
-    const error = ref.pendingError
-    ref.pendingError = null
-    throw error
+  function cleanup(ref: Ref) {
+    if (!ref.c) return
+    try {
+      ref.fc = true
+      ref.c()
+    } finally {
+      ref.fc = false
+      ref.c = undefined
+    }
+  }
+  function throwPendingError(ref: Ref) {
+    if ('e' in ref) {
+      const error = ref.e
+      delete ref.e
+      throw error
+    }
   }
 }

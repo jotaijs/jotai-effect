@@ -365,28 +365,29 @@ it('should work with both set.recurse and set', async () => {
 })
 
 it('should disallow synchronous set.recurse in cleanup', async () => {
-  expect.assertions(3)
-  const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  expect.assertions(2)
   let runCount = 0
   const watchedAtom = atom(0)
   const anotherAtom = atom(0)
+  let cleanup
   const effectAtom = atomEffect((get, { recurse }) => {
     get(watchedAtom)
     get(anotherAtom)
     runCount++
-    return () => {
+    cleanup = jest.fn(() => {
       recurse(watchedAtom, increment)
-    }
+    })
+    return cleanup
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
   await delay(0)
   store.set(anotherAtom, increment)
   await delay(0)
-  expect(warnSpy).toHaveBeenCalled()
   expect(store.get(watchedAtom)).toBe(0)
-  expect(runCount).toBe(2)
-  warnSpy.mockRestore()
+  expect(() => store.get(effectAtom)).toThrowError(
+    'set.recurse is not allowed in cleanup'
+  )
 })
 
 // FIXME: is there a way to disallow asynchronous infinite loops in cleanup?

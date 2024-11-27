@@ -60,4 +60,12 @@ describe('withAtomEffect', () => {
     await delay(0)
     expect(cleanupMock).toHaveBeenCalledTimes(1)
   })
+
+  it('does not modify the original atom', () => {
+    const read = () => 0
+    const baseAtom = { read }
+    const enhancedAtom = withAtomEffect(baseAtom, () => {})
+    expect(baseAtom.read).toBe(read)
+    expect(enhancedAtom.read).not.toBe(read)
+  })
 })

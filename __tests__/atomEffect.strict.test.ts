@@ -145,7 +145,7 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
     get(watchedAtom)
     runCount++
     setTimeout(() => {
-      set(watchedAtom, increment)
+      act(() => set(watchedAtom, increment))
     }, 0)
   })
   function useTest() {
@@ -172,7 +172,7 @@ it('should allow synchronous infinite loops with opt-in for first run', async ()
     const value = get(watchedAtom)
     runCount++
     if (value < 5) {
-      recurse(watchedAtom, increment)
+      act(() => recurse(watchedAtom, increment))
     }
   })
   const store = getDefaultStore()
