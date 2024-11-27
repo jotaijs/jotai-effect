@@ -1,15 +1,13 @@
 import type { Atom } from 'jotai/vanilla'
 import { atomEffect } from './atomEffect'
 
-type Effect = typeof atomEffect extends (effect: infer E) => Atom<infer _>
-  ? E
-  : never
+type Effect = Parameters<typeof atomEffect>[0]
 
 export function withAtomEffect<T extends Atom<any>>(
   targetAtom: T,
-  effectFn: Effect
+  effect: Effect
 ): T {
-  const effectAtom = atomEffect(effectFn)
+  const effectAtom = atomEffect(effect)
   const descriptors = Object.getOwnPropertyDescriptors(targetAtom)
   descriptors.read.value = (get, options) => {
     try {
