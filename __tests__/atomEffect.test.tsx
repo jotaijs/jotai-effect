@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { createElement, useEffect } from 'react'
 import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
@@ -366,14 +366,12 @@ it('should work with both set.recurse and set', async () => {
 
 it('should disallow synchronous set.recurse in cleanup', async () => {
   expect.assertions(2)
-  let runCount = 0
   const watchedAtom = atom(0)
   const anotherAtom = atom(0)
   let cleanup
   const effectAtom = atomEffect((get, { recurse }) => {
     get(watchedAtom)
     get(anotherAtom)
-    runCount++
     cleanup = jest.fn(() => {
       recurse(watchedAtom, increment)
     })
@@ -955,4 +953,28 @@ it('should trigger an error boundary when an error is thrown in a cleanup', asyn
   await delay(0)
   act(() => store.set(refreshAtom, increment))
   await waitFor(() => assert(didThrow))
+})
+
+it('should not suspend the component', async () => {
+  const countAtom = atom(0)
+  const watchCounterEffect = atomEffect((get) => {
+    get(countAtom)
+  })
+  let didSuspend = false
+  function App() {
+    try {
+      useAtomValue(watchCounterEffect)
+    } catch (error) {
+      didSuspend ||= error instanceof Promise
+    }
+    return null
+  }
+  const store = createStore()
+  render(<App />, {
+    wrapper: ({ children }) => createElement(Provider, { children, store }),
+  })
+  act(() => {
+    store.set(countAtom, increment)
+  })
+  expect(didSuspend).toBe(false)
 })

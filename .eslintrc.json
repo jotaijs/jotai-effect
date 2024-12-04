@@ -75,6 +75,7 @@
         "pathGroupsExcludedImportTypes": ["builtin"]
       }
     ],
+    "no-inner-declarations": "off",
     "react/jsx-uses-react": "off",
     "react/react-in-jsx-scope": "off",
     "sort-imports": [
