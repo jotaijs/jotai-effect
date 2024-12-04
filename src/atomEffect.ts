@@ -53,17 +53,7 @@ export function atomEffect(
     }
   )
   refAtom.onMount = (mount) => mount()
-  if (process.env.NODE_ENV !== 'production') {
-    Object.defineProperty(refreshAtom, 'debugLabel', {
-      get: () => `${effectAtom.debugLabel ?? 'effect'}:refresh`,
-    })
-    refreshAtom.debugPrivate = true
-    Object.defineProperty(refAtom, 'debugLabel', {
-      get: () => `${effectAtom.debugLabel ?? 'effect'}:ref`,
-    })
-    refAtom.debugPrivate = true
-  }
-  const effectAtom = atom((get) => {
+  const baseAtom = atom((get) => {
     get(refreshAtom)
     const ref = get(refAtom)
     if (!ref.m || ref.irc || (ref.i && !ref.irf)) {
@@ -124,6 +114,18 @@ export function atomEffect(
     }
     return ref.irf ? runEffect() : (ref.p = Promise.resolve().then(runEffect))
   })
+  if (process.env.NODE_ENV !== 'production') {
+    function setLabel(atom: Atom<unknown>, label: string) {
+      Object.defineProperty(atom, 'debugLabel', {
+        get: () => `${effectAtom.debugLabel ?? 'effect'}:${label}`,
+      })
+      atom.debugPrivate = true
+    }
+    setLabel(refreshAtom, 'refresh')
+    setLabel(refAtom, 'ref')
+    setLabel(baseAtom, 'base')
+  }
+  const effectAtom = atom((get) => void get(baseAtom))
   return effectAtom
   function refresh(ref: Ref) {
     try {
