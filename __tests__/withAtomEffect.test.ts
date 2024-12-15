@@ -68,4 +68,18 @@ describe('withAtomEffect', () => {
     expect(baseAtom.read).toBe(read)
     expect(enhancedAtom.read).not.toBe(read)
   })
+
+  it('does not cause infinite loops when it references itself', async () => {
+    const countWithEffectAtom = withAtomEffect(atom(0), (get, set) => {
+      get(countWithEffectAtom)
+      set(countWithEffectAtom, (v) => v + 1)
+    })
+    const store = createStore()
+    store.sub(countWithEffectAtom, () => {})
+    await Promise.resolve()
+    expect(store.get(countWithEffectAtom)).toBe(1)
+    store.set(countWithEffectAtom, (v) => ++v)
+    await Promise.resolve()
+    expect(store.get(countWithEffectAtom)).toBe(3)
+  })
 })
