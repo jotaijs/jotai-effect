@@ -1,6 +1,5 @@
 import { atom, createStore } from 'jotai/vanilla'
 import { withAtomEffect } from '../src/withAtomEffect'
-import { delay } from './test-utils'
 
 describe('withAtomEffect', () => {
   it('ensures readonly atoms remain readonly', () => {
@@ -26,7 +25,7 @@ describe('withAtomEffect', () => {
     expect(store.get(enhancedAtom)).toBe(6)
   })
 
-  it('calls effect on initial use and on dependencies change', async () => {
+  it('calls effect on initial use and on dependencies change of the base atom', async () => {
     const baseAtom = atom(0)
     const effectMock = jest.fn()
     const enhancedAtom = withAtomEffect(baseAtom, (get) => {
@@ -35,10 +34,26 @@ describe('withAtomEffect', () => {
     })
     const store = createStore()
     store.sub(enhancedAtom, () => {})
-    await delay(0)
+    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(1)
-    store.set(baseAtom, 1)
-    await delay(0)
+    store.set(enhancedAtom, 1)
+    await Promise.resolve()
+    expect(effectMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('calls effect on initial use and on dependencies change of the enhanced atom', async () => {
+    const baseAtom = atom(0)
+    const effectMock = jest.fn()
+    const enhancedAtom = withAtomEffect(baseAtom, (get) => {
+      effectMock()
+      get(enhancedAtom)
+    })
+    const store = createStore()
+    store.sub(enhancedAtom, () => {})
+    await Promise.resolve()
+    expect(effectMock).toHaveBeenCalledTimes(1)
+    store.set(enhancedAtom, 1)
+    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(2)
   })
 
@@ -54,10 +69,10 @@ describe('withAtomEffect', () => {
     })
     const store = createStore()
     const unsubscribe = store.sub(enhancedAtom, () => {})
-    await delay(0)
+    await Promise.resolve()
     expect(mountMock).toHaveBeenCalledTimes(1)
     unsubscribe()
-    await delay(0)
+    await Promise.resolve()
     expect(cleanupMock).toHaveBeenCalledTimes(1)
   })
 

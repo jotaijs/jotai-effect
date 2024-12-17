@@ -1,4 +1,4 @@
-import type { Atom } from 'jotai/vanilla'
+import type { Atom, WritableAtom } from 'jotai/vanilla'
 import { atomEffect } from './atomEffect'
 
 type Effect = Parameters<typeof atomEffect>[0]
@@ -15,6 +15,11 @@ export function withAtomEffect<T extends Atom<any>>(
     } finally {
       get(effectAtom)
     }
+  }
+  if ('write' in targetAtom) {
+    descriptors.write!.value = (
+      targetAtom as T & WritableAtom<unknown, unknown[], unknown>
+    ).write.bind(targetAtom)
   }
   // avoid reading `init` to preserve lazy initialization
   return Object.create(Object.getPrototypeOf(targetAtom), descriptors)
