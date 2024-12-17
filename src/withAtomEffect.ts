@@ -16,6 +16,9 @@ export function withAtomEffect<T extends Atom<any>>(
       get(effectAtom)
     }
   }
+  if ('write' in targetAtom) {
+    descriptors.write!.value = (targetAtom as any).write.bind(targetAtom)
+  }
   // avoid reading `init` to preserve lazy initialization
   return Object.create(Object.getPrototypeOf(targetAtom), descriptors)
 }
