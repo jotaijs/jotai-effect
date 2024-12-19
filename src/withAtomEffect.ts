@@ -17,10 +17,8 @@ export function withAtomEffect<T extends Atom<unknown>>(
       get(effectAtom)
     }
   }
-  if ('write' in targetAtom) {
-    descriptors.write!.value = (
-      targetAtom as T & WritableAtom<unknown, unknown[], unknown>
-    ).write.bind(targetAtom)
+  if ('write' in targetAtom && typeof targetAtom.write === 'function') {
+    descriptors.write!.value = targetAtom.write.bind(targetAtom)
   }
   descriptors.effect = {
     get() {

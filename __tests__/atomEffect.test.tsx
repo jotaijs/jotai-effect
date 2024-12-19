@@ -3,6 +3,7 @@ import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
+import { withAtomEffect } from '../src/withAtomEffect'
 import {
   ErrorBoundary,
   assert,
@@ -977,4 +978,94 @@ it('should not suspend the component', async () => {
     store.set(countAtom, increment)
   })
   expect(didSuspend).toBe(false)
+})
+
+it.only('calculates price and discount', async () => {
+  // https://github.com/pmndrs/jotai/discussions/2876
+  /*
+  How can be implemented an atom to hold either a value or a calculated value at the same time?
+
+  For instance imaging the case of an order line when you have:
+
+  - *unit price*: the price of the product, is always inserted manually.
+  - *discount*: can be inserted manually or is calculated from *unit price* and *price*.
+  - *price*: can be inserted manually or is calculated from *unit price* and *discount*.
+
+  From the state:
+  ```js
+  state = {
+    unitPrice: 100,
+    discount: 0,
+    price: 100
+  }
+  ```
+  when I change the discount to 20, price gets calculated:
+  ```js
+  state = {
+    unitPrice: 100,
+    discount: 20,
+    price: 80
+  }
+  ```
+  the same state is reached if I change price to 80.
+
+  The formula for `discount` is something like `discount = (unitPrice-price)/unitPrice*100`.  
+  The formula for `price` is something like `price = unitPrice*(1-discount/100)`.  
+
+  I implemented it using unitPriceAtom, discountAtom, priceAtom, discountFormulaAtom, priceFormulaAtom and atomEffect. But it results in an infinite loop.
+  */
+
+  function getNextPrice(unitPrice: number, discount: number) {
+    return unitPrice * (1 - discount / 100)
+  }
+  function getNextDiscount(unitPrice: number, price: number) {
+    return ((unitPrice - price) / unitPrice) * 100
+  }
+
+  // reacts to changes to unitPrice
+  const unitPriceAtom = withAtomEffect(atom(100), (get, set) => {
+    const unitPrice = get(unitPriceAtom)
+    set(priceAtom, getNextPrice(unitPrice, get.peek(discountAtom)))
+    set(discountAtom, getNextDiscount(unitPrice, get.peek(priceAtom)))
+  })
+
+  // reacts to changes to discount
+  const discountAtom = withAtomEffect(atom(0), (get, set) => {
+    const discount = get(discountAtom)
+    if (discount === 20 || discount === 80) {
+      set(priceAtom, getNextPrice(get.peek(unitPriceAtom), discount))
+    }
+  })
+
+  // reacts to changes to price
+  const priceAtom = withAtomEffect(atom(100), (get, set) => {
+    set(discountAtom, getNextDiscount(get.peek(unitPriceAtom), get(priceAtom)))
+  })
+
+  const priceAndDiscount = atom((get) => ({
+    unitPrice: get(unitPriceAtom),
+    discount: get(discountAtom),
+    price: get(priceAtom),
+  }))
+
+  const store = createStore()
+  store.sub(priceAndDiscount, () => void 0)
+  await delay(0)
+  expect(store.get(priceAtom)).toBe(100) // value
+  expect(store.get(discountAtom)).toBe(0) // (100-100)/100*100 = 0)
+
+  store.set(discountAtom, 20)
+  await delay(0)
+  expect(store.get(priceAtom)).toBe(80) // 100*(1-20/100) = 80)
+  expect(store.get(discountAtom)).toBe(20) // value
+
+  store.set(priceAtom, 50)
+  await delay(0)
+  expect(store.get(priceAtom)).toBe(50) // value
+  expect(store.get(discountAtom)).toBe(50) // (100-50)/100*100 = 50)
+
+  store.set(unitPriceAtom, 200)
+  await delay(0)
+  expect(store.get(priceAtom)).toBe(100) // 200*(1-50/100) = 100)
+  expect(store.get(discountAtom)).toBe(50) // (200-100)/200*100 = 50)
 })
