@@ -97,4 +97,28 @@ describe('withAtomEffect', () => {
     await Promise.resolve()
     expect(store.get(countWithEffectAtom)).toBe(3)
   })
+
+  it('can change the effect of the enhanced atom', async () => {
+    const baseAtom = atom(0)
+    const effectA = jest.fn((get) => {
+      get(enhancedAtom)
+    })
+    const enhancedAtom = withAtomEffect(baseAtom, effectA)
+    expect(enhancedAtom.effect).toBe(effectA)
+    const store = createStore()
+    store.sub(enhancedAtom, () => {})
+    await Promise.resolve()
+    effectA.mockClear()
+    store.set(enhancedAtom, (v) => ++v)
+    await Promise.resolve()
+    expect(effectA).toHaveBeenCalledTimes(1)
+    effectA.mockClear()
+    const effectB = jest.fn((get) => get(baseAtom))
+    enhancedAtom.effect = effectB
+    expect(enhancedAtom.effect).toBe(effectB)
+    store.set(enhancedAtom, (v) => ++v)
+    await Promise.resolve()
+    expect(effectA).not.toHaveBeenCalled()
+    expect(effectB).toHaveBeenCalledTimes(1)
+  })
 })
