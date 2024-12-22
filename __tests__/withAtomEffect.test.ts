@@ -1,5 +1,9 @@
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { useAtomValue } from 'jotai/react'
 import { atom, createStore } from 'jotai/vanilla'
+import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
+import { delay } from './test-utils'
 
 describe('withAtomEffect', () => {
   it('ensures readonly atoms remain readonly', () => {
@@ -120,5 +124,172 @@ describe('withAtomEffect', () => {
     await Promise.resolve()
     expect(effectA).not.toHaveBeenCalled()
     expect(effectB).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs the cleanup function the same number of times as the effect function', async () => {
+    const baseAtom = atom(0)
+    const effectMock = jest.fn()
+    const cleanupMock = jest.fn()
+    const enhancedAtom = withAtomEffect(baseAtom, (get) => {
+      get(enhancedAtom)
+      effectMock()
+      return () => {
+        cleanupMock()
+      }
+    })
+    const store = createStore()
+    const unsub = store.sub(enhancedAtom, () => {})
+    await Promise.resolve()
+    expect(effectMock).toHaveBeenCalledTimes(1)
+    expect(cleanupMock).toHaveBeenCalledTimes(0)
+    store.set(enhancedAtom, 1)
+    await Promise.resolve()
+    expect(effectMock).toHaveBeenCalledTimes(2)
+    expect(cleanupMock).toHaveBeenCalledTimes(1)
+    unsub()
+    await Promise.resolve()
+    expect(effectMock).toHaveBeenCalledTimes(2)
+    expect(cleanupMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs the cleanup function the same number of times as the effect function in React', async () => {
+    const baseAtom = atom(0)
+    const effectMock1 = jest.fn()
+    const cleanupMock1 = jest.fn()
+    const effectAtom = atomEffect((get) => {
+      get(baseAtom)
+      effectMock1()
+      return () => {
+        cleanupMock1()
+      }
+    })
+    const enhancedAtom1 = atom(
+      (get) => {
+        get(effectAtom)
+        return get(baseAtom)
+      },
+      (_, set, value: number) => set(baseAtom, value)
+    )
+    const effectMock2 = jest.fn()
+    const cleanupMock2 = jest.fn()
+    const enhancedAtom2 = withAtomEffect(baseAtom, (get) => {
+      get(enhancedAtom2)
+      effectMock2()
+      return cleanupMock2
+    })
+    const store = createStore()
+    function Test() {
+      useAtomValue(enhancedAtom1, { store })
+      useAtomValue(enhancedAtom2, { store })
+    }
+    const { unmount } = renderHook(Test)
+    await waitFor(() => expect(effectMock1).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(effectMock2).toHaveBeenCalledTimes(1))
+    expect(cleanupMock1).toHaveBeenCalledTimes(0)
+    expect(cleanupMock2).toHaveBeenCalledTimes(0)
+    act(() => store.set(baseAtom, 1))
+    await waitFor(() => expect(effectMock1).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(effectMock2).toHaveBeenCalledTimes(2))
+    expect(cleanupMock1).toHaveBeenCalledTimes(1)
+    expect(cleanupMock2).toHaveBeenCalledTimes(1)
+    act(unmount)
+    await waitFor(() => expect(cleanupMock1).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(cleanupMock2).toHaveBeenCalledTimes(2))
+  })
+
+  it('calculates price and discount', async () => {
+    // https://github.com/pmndrs/jotai/discussions/2876
+    /*
+    How can be implemented an atom to hold either a value or a calculated value at the same time?
+
+    For instance imaging the case of an order line when you have:
+
+    - *unit price*: the price of the product, is always inserted manually.
+    - *discount*: can be inserted manually or is calculated from *unit price* and *price*.
+    - *price*: can be inserted manually or is calculated from *unit price* and *discount*.
+
+    From the state:
+    ```js
+    state = {
+      unitPrice: 100,
+      discount: 0,
+      price: 100
+    }
+    ```
+    when I change the discount to 20, price gets calculated:
+    ```js
+    state = {
+      unitPrice: 100,
+      discount: 20,
+      price: 80
+    }
+    ```
+    the same state is reached if I change price to 80.
+
+    The formula for `discount` is something like `discount = (unitPrice-price)/unitPrice*100`.  
+    The formula for `price` is something like `price = unitPrice*(1-discount/100)`.  
+
+    I implemented it using unitPriceAtom, discountAtom, priceAtom, discountFormulaAtom, priceFormulaAtom and atomEffect. But it results in an infinite loop.
+    */
+
+    function getNextPrice(unitPrice: number, discount: number) {
+      return unitPrice * (1 - discount / 100)
+    }
+
+    function getNextDiscount(unitPrice: number, price: number) {
+      return ((unitPrice - price) / unitPrice) * 100
+    }
+
+    // reacts to changes to unitPrice
+    const unitPriceAtom = withAtomEffect(atom(100), (get, set) => {
+      const unitPrice = get(unitPriceAtom)
+      set(priceAtom, getNextPrice(unitPrice, get.peek(discountAtom)))
+      set(discountAtom, getNextDiscount(unitPrice, get.peek(priceAtom)))
+    })
+
+    // reacts to changes to discount
+    const discountAtom = withAtomEffect(atom(0), (get, set) => {
+      const discount = get(discountAtom)
+      if (discount === 20 || discount === 80) {
+        const p = getNextPrice(get.peek(unitPriceAtom), discount)
+        console.log(p)
+        set(priceAtom, p)
+      }
+    })
+
+    // reacts to changes to price
+    const priceAtom = withAtomEffect(atom(100), (get, set) => {
+      set(
+        discountAtom,
+        getNextDiscount(get.peek(unitPriceAtom), get(priceAtom))
+      )
+    })
+
+    const priceAndDiscount = atom((get) => ({
+      unitPrice: get(unitPriceAtom),
+      discount: get(discountAtom),
+      price: get(priceAtom),
+    }))
+
+    const store = createStore()
+    store.sub(priceAndDiscount, () => void 0)
+    await delay(0)
+    expect(store.get(priceAtom)).toBe(100) // value
+    expect(store.get(discountAtom)).toBe(0) // (100-100)/100*100 = 0)
+
+    store.set(discountAtom, 20)
+    await delay(0)
+    expect(store.get(priceAtom)).toBe(80) // 100*(1-20/100) = 80)
+    expect(store.get(discountAtom)).toBe(20) // value
+
+    store.set(priceAtom, 50)
+    await delay(0)
+    expect(store.get(priceAtom)).toBe(50) // value
+    expect(store.get(discountAtom)).toBe(50) // (100-50)/100*100 = 50)
+
+    store.set(unitPriceAtom, 200)
+    await delay(0)
+    expect(store.get(priceAtom)).toBe(100) // 200*(1-50/100) = 100)
+    expect(store.get(discountAtom)).toBe(50) // (200-100)/200*100 = 50)
   })
 })

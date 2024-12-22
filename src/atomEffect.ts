@@ -25,7 +25,7 @@ type Ref = {
   irc: boolean
   /** is refreshing */
   irf: boolean
-  get: Getter
+  peek: Getter
   set: Setter
 }
 
@@ -34,20 +34,10 @@ export function atomEffect(
 ): AtomWithEffect {
   const refreshAtom = atom(0)
   const refAtom = atom(
-    (): Ref => ({
-      i: 0,
-      m: false,
-      p: undefined as Promise<void> | undefined,
-      c: undefined as Cleanup | void,
-      fc: false,
-      irc: false,
-      irf: false,
-      get: (() => {}) as Getter,
-      set: (() => {}) as Setter,
-    }),
+    () => ({ i: 0 }) as Ref,
     (get, set) => {
       const ref = get(refAtom)
-      Object.assign(ref, { m: true, get, set })
+      Object.assign(ref, { m: true, peek: get, set })
       set(refreshAtom, (c) => c + 1)
       return () => {
         ref.m = false
@@ -70,7 +60,7 @@ export function atomEffect(
       currDeps.set(a, value)
       return value
     }
-    getter.peek = (anAtom) => ref.get(anAtom)
+    getter.peek = ref.peek
     const setter: SetterWithRecurse = (...args) => {
       try {
         ++ref.i

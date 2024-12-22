@@ -1,4 +1,4 @@
-import type { Atom, WritableAtom } from 'jotai/vanilla'
+import type { Atom } from 'jotai/vanilla'
 import type { AtomWithEffect, Effect } from './atomEffect'
 import { atomEffect } from './atomEffect'
 
@@ -6,28 +6,35 @@ export function withAtomEffect<T extends Atom<unknown>>(
   targetAtom: T,
   effect: Effect
 ): AtomWithEffect<T> {
-  const effectAtom = atomEffect(effect)
+  const effectAtom = atomEffect((get, set) => {
+    const getter = ((a) =>
+      a === targetWithEffect ? get(targetAtom) : get(a)) as typeof get
+    getter.peek = get.peek
+    return targetWithEffect.effect(getter, set)
+  })
+  if (process.env.NODE_ENV !== 'production') {
+    Object.defineProperty(effectAtom, 'debugLabel', {
+      get: () => `${targetWithEffect.debugLabel ?? 'atomWithEffect'}:effect`,
+    })
+    effectAtom.debugPrivate = true
+  }
   const descriptors = Object.getOwnPropertyDescriptors(
     targetAtom as AtomWithEffect<T>
   )
-  descriptors.read.value = (get, options) => {
+  descriptors.read.value = (get) => {
     try {
-      return targetAtom.read(get, options)
+      return get(targetAtom)
     } finally {
       get(effectAtom)
     }
   }
   if ('write' in targetAtom && typeof targetAtom.write === 'function') {
     descriptors.write!.value = targetAtom.write.bind(targetAtom)
+    delete descriptors.onMount
   }
-  descriptors.effect = {
-    get() {
-      return effectAtom.effect
-    },
-    set(newEffect) {
-      effectAtom.effect = newEffect
-    },
-  } as typeof descriptors.effect
   // avoid reading `init` to preserve lazy initialization
-  return Object.create(Object.getPrototypeOf(targetAtom), descriptors)
+  const targetPrototype = Object.getPrototypeOf(targetAtom)
+  const targetWithEffect = Object.create(targetPrototype, descriptors)
+  targetWithEffect.effect = effect
+  return targetWithEffect
 }
