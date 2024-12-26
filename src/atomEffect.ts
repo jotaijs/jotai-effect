@@ -2,10 +2,10 @@ import type { Atom, Getter, Setter } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 
 type Cleanup = () => void
-type GetterWithPeak = Getter & { peek: Getter }
+type GetterWithPeek = Getter & { peek: Getter }
 type SetterWithRecurse = Setter & { recurse: Setter }
 export type Effect = (
-  get: GetterWithPeak,
+  get: GetterWithPeek,
   set: SetterWithRecurse
 ) => void | Cleanup
 export type AtomWithEffect<T extends Atom<unknown> = Atom<void>> = T & {
@@ -13,7 +13,7 @@ export type AtomWithEffect<T extends Atom<unknown> = Atom<void>> = T & {
 }
 
 type Ref = {
-  get: GetterWithPeak
+  get: GetterWithPeek
   set?: SetterWithRecurse
   cleanup?: Cleanup | null
   fromCleanup: boolean
