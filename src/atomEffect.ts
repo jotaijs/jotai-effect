@@ -2,149 +2,100 @@ import type { Atom, Getter, Setter } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 
 type Cleanup = () => void
-type GetterWithPeek = Getter & { peek: Getter }
+type GetterWithPeak = Getter & { peek: Getter }
 type SetterWithRecurse = Setter & { recurse: Setter }
-export type Effect = Parameters<typeof atomEffect>[0]
+export type Effect = (
+  get: GetterWithPeak,
+  set: SetterWithRecurse
+) => void | Cleanup
 export type AtomWithEffect<T extends Atom<unknown> = Atom<void>> = T & {
   effect: Effect
 }
+
 type Ref = {
-  /** inProgress */
-  i: number
-  /** mounted */
-  m: boolean
-  /** promise */
-  p: Promise<void> | undefined
-  /** pending error */
-  e?: unknown
-  /** cleanup */
-  c: Cleanup | void
-  /** from cleanup */
-  fc: boolean
-  /** is recursing */
-  irc: boolean
-  /** is refreshing */
-  irf: boolean
-  peek: Getter
-  set: Setter
+  get: GetterWithPeak
+  set?: SetterWithRecurse
+  cleanup?: Cleanup | null
+  fromCleanup: boolean
+  inProgress: number
+  deps: Set<Atom<unknown>>
+  init: () => void
 }
 
-export function atomEffect(
-  effect: (get: GetterWithPeek, set: SetterWithRecurse) => void | Cleanup
-): AtomWithEffect {
-  const refreshAtom = atom(0)
+export function atomEffect(effect: Effect) {
   const refAtom = atom(
-    () => ({ i: 0 }) as Ref,
-    (get, set) => {
+    () => ({ deps: new Set(), inProgress: 0 }) as Ref,
+    (get) => {
       const ref = get(refAtom)
-      Object.assign(ref, { m: true, peek: get, set })
-      set(refreshAtom, (c) => c + 1)
       return () => {
-        ref.m = false
-        cleanup(ref)
-        throwPendingError(ref)
+        ref.cleanup?.()
+        ref.cleanup = null
+        ref.deps.clear()
       }
     }
   )
   refAtom.onMount = (mount) => mount()
-  const baseAtom = atom((get) => {
-    get(refreshAtom)
+  const internalAtom = atom((get) => {
     const ref = get(refAtom)
-    if (!ref.m || ref.irc || (ref.i && !ref.irf)) {
-      return ref.p
+    if (!ref.get) {
+      ref.get = ((a) => {
+        ref.deps.add(a)
+        return get(a)
+      }) as Getter & { peek: Getter }
     }
-    throwPendingError(ref)
-    const currDeps = new Map<Atom<unknown>, unknown>()
-    const getter: GetterWithPeek = (a) => {
-      const value = get(a)
-      currDeps.set(a, value)
-      return value
+    ref.init()
+    ref.deps.forEach(get)
+    if (ref.inProgress > 0) {
+      return
     }
-    getter.peek = ref.peek
-    const setter: SetterWithRecurse = (...args) => {
-      try {
-        ++ref.i
-        return ref.set(...args)
-      } finally {
-        Array.from(currDeps.keys(), get)
-        --ref.i
-      }
-    }
-    setter.recurse = (anAtom, ...args) => {
-      if (ref.fc) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw new Error('set.recurse is not allowed in cleanup')
-        }
-        return undefined as any
-      }
-      try {
-        ref.irc = true
-        return ref.set(anAtom, ...args)
-      } finally {
-        ref.irc = false
-        const depsChanged = Array.from(currDeps).some(areDifferent)
-        if (depsChanged) {
-          refresh(ref)
-        }
-      }
-    }
-    function areDifferent([a, v]: [Atom<unknown>, unknown]) {
-      return get(a) !== v
-    }
-    ++ref.i
-    function runEffect() {
-      try {
-        ref.irf = false
-        if (!ref.m) return
-        cleanup(ref)
-        ref.c = effectAtom.effect(getter, setter)
-      } catch (error) {
-        ref.e = error
-        refresh(ref)
-      } finally {
-        ref.p = undefined
-        --ref.i
-      }
-    }
-    return ref.irf ? runEffect() : (ref.p = Promise.resolve().then(runEffect))
+    ref.cleanup?.()
+    const cleanup = effectAtom.effect(ref.get!, ref.set!)
+    ref.cleanup =
+      typeof cleanup === 'function'
+        ? () => {
+            try {
+              ref.fromCleanup = true
+              cleanup()
+            } finally {
+              ref.fromCleanup = false
+            }
+          }
+        : null
   })
-  if (process.env.NODE_ENV !== 'production') {
-    function setLabel(atom: Atom<unknown>, label: string) {
-      Object.defineProperty(atom, 'debugLabel', {
-        get: () => `${effectAtom.debugLabel ?? 'effect'}:${label}`,
-      })
-      atom.debugPrivate = true
+  internalAtom.unstable_onInit = (store) => {
+    const ref = store.get(refAtom)
+    const get = store.get
+    const set = store.set
+    ref.init = () => {
+      if (!ref.get.peek) {
+        ref.get.peek = get
+      }
+      if (!ref.set) {
+        const setter: Setter = (a, ...args) => {
+          try {
+            ++ref.inProgress
+            return set(a, ...args)
+          } finally {
+            --ref.inProgress
+            ref.get(a) // FIXME why do we need this?
+          }
+        }
+        const recurse: Setter = (a, ...args) => {
+          if (ref.fromCleanup) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn('cannot recurse inside cleanup')
+            }
+            return undefined as any
+          }
+          return set(a, ...args)
+        }
+        ref.set = Object.assign(setter, { recurse })
+      }
     }
-    setLabel(refreshAtom, 'refresh')
-    setLabel(refAtom, 'ref')
-    setLabel(baseAtom, 'base')
   }
-  const effectAtom = atom((get) => void get(baseAtom)) as AtomWithEffect
-  effectAtom.effect = effect
+  const effectAtom = Object.assign(
+    atom((get) => get(internalAtom)),
+    { effect }
+  )
   return effectAtom
-  function refresh(ref: Ref) {
-    try {
-      ref.irf = true
-      ref.set(refreshAtom, (c) => c + 1)
-    } finally {
-      ref.irf = false
-    }
-  }
-  function cleanup(ref: Ref) {
-    if (!ref.c) return
-    try {
-      ref.fc = true
-      ref.c()
-    } finally {
-      ref.fc = false
-      ref.c = undefined
-    }
-  }
-  function throwPendingError(ref: Ref) {
-    if ('e' in ref) {
-      const error = ref.e
-      delete ref.e
-      throw error
-    }
-  }
 }

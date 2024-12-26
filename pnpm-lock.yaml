@@ -60,8 +60,8 @@ devDependencies:
     specifier: ^29.7.0
     version: 29.7.0
   jotai:
-    specifier: 2.10.3
-    version: 2.10.3(@types/react@18.2.25)(react@18.2.0)
+    specifier: https://pkg.pr.new/jotai@488a8a4
+    version: '@pkg.pr.new/jotai@488a8a4(@types/react@18.2.25)(react@18.2.0)'
   microbundle:
     specifier: ^0.15.1
     version: 0.15.1
@@ -5873,22 +5873,6 @@ packages:
       - ts-node
     dev: true
 
-  /jotai@2.10.3(@types/react@18.2.25)(react@18.2.0):
-    resolution: {integrity: sha512-Nnf4IwrLhNfuz2JOQLI0V/AgwcpxvVy8Ec8PidIIDeRi4KCFpwTFIpHAAcU+yCgnw/oASYElq9UY0YdUUegsSA==}
-    engines: {node: '>=12.20.0'}
-    peerDependencies:
-      '@types/react': '>=17.0.0'
-      react: '>=17.0.0'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react:
-        optional: true
-    dependencies:
-      '@types/react': 18.2.25
-      react: 18.2.0
-    dev: true
-
   /js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
     dev: true
@@ -8979,4 +8963,23 @@ packages:
   /yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
+    dev: true
+
+  '@pkg.pr.new/jotai@488a8a4(@types/react@18.2.25)(react@18.2.0)':
+    resolution: {tarball: https://pkg.pr.new/jotai@488a8a4}
+    id: '@pkg.pr.new/jotai@488a8a4'
+    name: jotai
+    version: 2.11.0
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=17.0.0'
+      react: '>=17.0.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
+    dependencies:
+      '@types/react': 18.2.25
+      react: 18.2.0
     dev: true
