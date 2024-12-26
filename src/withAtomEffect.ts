@@ -1,6 +1,8 @@
 import type { Atom } from 'jotai/vanilla'
-import type { AtomWithEffect, Effect } from './atomEffect'
+import type { Effect } from './atomEffect'
 import { atomEffect } from './atomEffect'
+
+type AtomWithEffect<T extends Atom<unknown>> = T & { effect: Effect }
 
 export function withAtomEffect<T extends Atom<unknown>>(
   targetAtom: T,
