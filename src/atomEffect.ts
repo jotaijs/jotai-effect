@@ -8,9 +8,6 @@ export type Effect = (
   get: GetterWithPeek,
   set: SetterWithRecurse
 ) => void | Cleanup
-export type AtomWithEffect<T extends Atom<unknown> = Atom<void>> = T & {
-  effect: Effect
-}
 
 type Ref = {
   get: GetterWithPeek
