@@ -12,7 +12,7 @@ import {
   incrementLetter,
 } from './test-utils'
 
-it('should run the effect on vanilla store', async () => {
+it('should run the effect on vanilla store', () => {
   const store = getDefaultStore()
   const countAtom = atom(0)
   const effectAtom = atomEffect((_, set) => {
@@ -22,13 +22,12 @@ it('should run the effect on vanilla store', async () => {
     }
   })
   const unsub = store.sub(effectAtom, () => void 0)
-  expect(store.get(countAtom)).toBe(0)
-  await waitFor(() => expect(store.get(countAtom)).toBe(1))
+  expect(store.get(countAtom)).toBe(1)
   unsub()
-  await waitFor(() => expect(store.get(countAtom)).toBe(0))
+  expect(store.get(countAtom)).toBe(0)
 })
 
-it('should not call effect if immediately unsubscribed', async () => {
+it('should not call effect if immediately unsubscribed', () => {
   expect.assertions(1)
   const store = getDefaultStore()
   const effect = vi.fn()
@@ -42,22 +41,17 @@ it('should run the effect on mount and cleanup on unmount once', async () => {
   expect.assertions(5)
   const effect = { mount: 0, unmount: 0 }
 
-  let hasMounted = false
   const effectAtom = atomEffect(() => {
     effect.mount++
-    hasMounted = true
     return () => {
       effect.unmount++
     }
   })
 
-  let hasRun = false
   function useTest() {
-    hasRun = true
     return useAtomValue(effectAtom)
   }
   const { result, rerender, unmount } = renderHook(useTest)
-  await waitFor(() => assert(hasRun && hasMounted))
   // effect does not return a value
   expect(result.current).toBe(undefined)
 
@@ -76,7 +70,7 @@ it('should run the effect on mount and cleanup on unmount once', async () => {
   expect(effect.unmount).toBe(1)
 })
 
-it('should run the effect on mount and cleanup on unmount and whenever countAtom changes', async () => {
+it('should run the effect on mount and cleanup on unmount and whenever countAtom changes', () => {
   expect.assertions(11)
   const effect = { mount: 0, unmount: 0 }
 
@@ -100,11 +94,11 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
     return setCount
   }
   const { result, rerender, unmount } = renderHook(useTest)
-  async function incrementCount() {
+  function incrementCount() {
     const setCount = result.current
-    await act(async () => setCount(increment))
+    setCount(increment)
   }
-  await waitFor(() => assert(didMount && effect.mount === 1))
+  waitFor(() => assert(didMount && effect.mount === 1))
 
   // initial render should run the effect but not the cleanup
   expect(effect.unmount).toBe(0)
@@ -115,13 +109,13 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
   expect(effect.unmount).toBe(0)
   expect(effect.mount).toBe(1)
 
-  await incrementCount()
+  incrementCount()
 
   // changing the value should run the effect again and the previous cleanup
   expect(effect.unmount).toBe(1)
   expect(effect.mount).toBe(2)
 
-  await incrementCount()
+  incrementCount()
 
   // changing the value should run the effect again and the previous cleanup
   expect(effect.unmount).toBe(2)
@@ -139,7 +133,7 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
   expect(effect.unmount).toBe(3)
 })
 
-it('should not cause infinite loops when effect updates the watched atom', async () => {
+it('should not cause infinite loops when effect updates the watched atom', () => {
   expect.assertions(2)
   const watchedAtom = atom(0)
   let runCount = 0
@@ -151,17 +145,15 @@ it('should not cause infinite loops when effect updates the watched atom', async
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
 
-  const incrementWatched = async () => store.set(watchedAtom, increment)
-  await delay(0)
+  const incrementWatched = () => store.set(watchedAtom, increment)
   // initial render should run the effect once
-  await waitFor(() => assert(runCount === 1))
   expect(runCount).toBe(1)
   // changing the value should run the effect again one time
-  await incrementWatched()
+  incrementWatched()
   expect(runCount).toBe(2)
 })
 
-it('should not cause infinite loops when effect updates the watched atom asynchronous', async () => {
+it('should not cause infinite loops when effect updates the watched atom asynchronous', () => {
   expect.assertions(1)
   const watchedAtom = atom(0)
   let runCount = 0
@@ -174,41 +166,32 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await delay(0)
-  // initial render should run the effect once
-  await waitFor(() => assert(runCount === 1))
-
   // changing the value should run the effect again one time
   store.set(watchedAtom, increment)
-
-  await delay(0)
   expect(runCount).toBe(2)
 })
 
-it('should allow synchronous recursion with set.recurse for first run', async () => {
+it('should allow synchronous recursion with set.recurse for first run', () => {
   expect.assertions(1)
   let runCount = 0
   const watchedAtom = atom(0)
-  let done = false
   const effectAtom = atomEffect((get, { recurse }) => {
     const value = get(watchedAtom)
     runCount++
     if (value >= 3) {
-      done = true
       return
     }
     recurse(watchedAtom, increment)
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await waitFor(() => assert(done))
   expect({ runCount, watched: store.get(watchedAtom) }).toEqual({
     runCount: 4,
     watched: 3,
   })
 })
 
-it('should allow synchronous recursion with set.recurse', async () => {
+it('should allow synchronous recursion with set.recurse', () => {
   expect.assertions(2)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -225,14 +208,12 @@ it('should allow synchronous recursion with set.recurse', async () => {
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await delay(0)
   store.set(watchedAtom, increment)
-  await waitFor(() => assert(store.get(watchedAtom) === 5))
   expect(store.get(watchedAtom)).toBe(5)
   expect(runCount).toBe(6)
 })
 
-it('should allow multiple synchronous recursion with set.recurse', async () => {
+it('should allow multiple synchronous recursion with set.recurse', () => {
   expect.assertions(1)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -250,16 +231,14 @@ it('should allow multiple synchronous recursion with set.recurse', async () => {
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await delay(0)
   store.set(watchedAtom, increment)
-  await delay(0)
   expect({ runCount, value: store.get(watchedAtom) }).toEqual({
     runCount: 6,
     value: 5,
   })
 })
 
-it('should batch updates during synchronous recursion with set.recurse', async () => {
+it('should batch updates during synchronous recursion with set.recurse', () => {
   expect.assertions(2)
   let runCount = 0
   const lettersAtom = atom('a')
@@ -289,9 +268,7 @@ it('should batch updates during synchronous recursion with set.recurse', async (
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await delay(0)
   store.set(watchedAtom, increment)
-  await delay(0)
   expect(store.get(lettersAndNumbersAtom)).toEqual(['a0', 'b1'])
   expect(runCount).toBe(4)
 })
@@ -336,12 +313,12 @@ it('should allow asynchronous recursion with microtask delay with set.recurse', 
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await delay(500)
+  await waitFor(() => assert(store.get(watchedAtom) >= 3))
   expect(store.get(watchedAtom)).toBe(3)
   expect(runCount).toBe(4)
 })
 
-it('should work with both set.recurse and set', async () => {
+it('should work with both set.recurse and set', () => {
   expect.assertions(3)
   let runCount = 0
   const watchedAtom = atom(0)
@@ -359,14 +336,13 @@ it('should work with both set.recurse and set', async () => {
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await waitFor(() => assert(store.get(countAtom) === 3))
   expect(store.get(countAtom)).toBe(3)
   expect(store.get(watchedAtom)).toBe(4)
   expect(runCount).toBe(4)
 })
 
-it('should disallow synchronous set.recurse in cleanup', async () => {
-  expect.assertions(2)
+it('should disallow synchronous set.recurse in cleanup', () => {
+  expect.assertions(1)
   const watchedAtom = atom(0)
   const anotherAtom = atom(0)
   let cleanup
@@ -380,18 +356,15 @@ it('should disallow synchronous set.recurse in cleanup', async () => {
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await delay(0)
   store.set(anotherAtom, increment)
-  await delay(0)
-  expect(store.get(watchedAtom)).toBe(0)
-  expect(() => store.get(effectAtom)).toThrowError(
+  expect(() => store.set(anotherAtom, increment)).toThrowError(
     'set.recurse is not allowed in cleanup'
   )
 })
 
 // FIXME: is there a way to disallow asynchronous infinite loops in cleanup?
 
-it('should return value from set.recurse', async () => {
+it('should return value from set.recurse', () => {
   expect.assertions(1)
   const countAtom = atom(0)
   const incrementCountAtom = atom(null, (get, set) => {
@@ -399,23 +372,20 @@ it('should return value from set.recurse', async () => {
     return get(countAtom)
   })
   const results = [] as number[]
-  let done = false
   const effectAtom = atomEffect((get, { recurse }) => {
     const value = get(countAtom)
     if (value < 5) {
       const result = recurse(incrementCountAtom)
       results.unshift(result)
-      done = true
       return
     }
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await waitFor(() => assert(done))
   expect(results).toEqual([1, 2, 3, 4, 5])
 })
 
-it('should conditionally run the effect and cleanup when effectAtom is unmounted', async () => {
+it('should conditionally run the effect and cleanup when effectAtom is unmounted', () => {
   expect.assertions(6)
 
   const booleanAtom = atom(false)
@@ -440,19 +410,19 @@ it('should conditionally run the effect and cleanup when effectAtom is unmounted
 
   const { result } = renderHook(useTest)
   const setBoolean = result.current
-  const toggleBoolean = () => act(async () => setBoolean((prev) => !prev))
+  const toggleBoolean = () => setBoolean((prev) => !prev)
 
   // Initially the effectAtom should not run as booleanAtom is false
   expect(effectRunCount).toBe(0)
   expect(cleanupRunCount).toBe(0)
 
   // Set booleanAtom to true, so effectAtom should run
-  await toggleBoolean()
+  toggleBoolean()
   expect(effectRunCount).toBe(1)
   expect(cleanupRunCount).toBe(0)
 
   // Set booleanAtom to false, so effectAtom should cleanup
-  await toggleBoolean()
+  toggleBoolean()
   expect(effectRunCount).toBe(1)
   expect(cleanupRunCount).toBe(1)
 })
@@ -523,6 +493,7 @@ describe('should correctly process synchronous updates to the same atom', () => 
       // 2. incrementing count: count = 1
       // 3. incrementing count: count = 2
       // 4. incrementing count reruns the effect (batched): run = 2
+      // FIXME: understand why run-result: 3-2
       effectIncrementCountBy: 0,
       incrementCountBy: 2,
       runs: [
@@ -561,6 +532,7 @@ describe('should correctly process synchronous updates to the same atom', () => 
       // 4. incrementing count: count = 3
       // 5. incrementing count reruns the effect (batched): run = 2
       // 6. effect increments count: count = 4
+      // FIXME: understand why run-result: 3-5
       effectIncrementCountBy: 1,
       incrementCountBy: 2,
       runs: [
@@ -598,6 +570,7 @@ describe('should correctly process synchronous updates to the same atom', () => 
       // 4. incrementing count: count = 4
       // 5. incrementing count reruns the effect (batched): run = 2
       // 6. effect increments count by two: count = 6
+      // FIXME: understand why run-result: 3-8
       effectIncrementCountBy: 2,
       incrementCountBy: 2,
       runs: [
@@ -655,8 +628,6 @@ it('should not batch effect setStates', async () => {
   const { result } = renderHook(() => useSetAtom(triggerAtom))
   const setTrigger = result.current
 
-  await waitFor(() => assert(runCount.current === 1))
-
   expect(valueResult.current).toBe(0)
   expect(runCount.current).toBe(1)
 
@@ -665,7 +636,7 @@ it('should not batch effect setStates', async () => {
   expect(runCount.current).toBe(3) // <--- not batched (we would expect runCount to be 2 if batched)
 })
 
-it('should batch synchronous updates as a single transaction', async () => {
+it('should batch synchronous updates as a single transaction', () => {
   expect.assertions(4)
   const lettersAtom = atom('a')
   lettersAtom.debugLabel = 'lettersAtom'
@@ -686,23 +657,25 @@ it('should batch synchronous updates as a single transaction', async () => {
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
 
-  await waitFor(() => assert(!!runCount))
   expect(runCount).toBe(1)
   expect(store.get(lettersAndNumbersAtom)).toEqual(['a0'])
-  await act(async () => {
-    store.set(lettersAtom, incrementLetter)
-    store.set(numbersAtom, increment)
+  const w = atom(null, (_get, set) => {
+    set(lettersAtom, incrementLetter)
+    set(numbersAtom, increment)
   })
+  store.set(w)
   expect(runCount).toBe(2)
   expect(store.get(lettersAndNumbersAtom)).toEqual(['a0', 'b1'])
 })
 
-it('should run the effect once even if the effect is mounted multiple times', async () => {
+it('should run the effect once even if the effect is mounted multiple times', () => {
   expect.assertions(3)
   const lettersAtom = atom('a')
-  lettersAtom.debugLabel = 'lettersAtom'
   const numbersAtom = atom(0)
-  numbersAtom.debugLabel = 'numbersAtom'
+  const lettersAndNumbersAtom = atom(null, (_get, set) => {
+    set(lettersAtom, incrementLetter)
+    set(numbersAtom, increment)
+  })
   let runCount = 0
   const effectAtom = atomEffect((get) => {
     runCount++
@@ -732,23 +705,14 @@ it('should run the effect once even if the effect is mounted multiple times', as
     useAtomValue(derivedAtom2)
     useAtomValue(derivedAtom3)
     useAtomValue(derivedAtom4)
-    const setLetters = useSetAtom(lettersAtom)
-    const setNumbers = useSetAtom(numbersAtom)
-    return { setLetters, setNumbers }
+    return useSetAtom(lettersAndNumbersAtom)
   }
   const { result } = renderHook(useTest)
-  const { setLetters, setNumbers } = result.current
-  await waitFor(() => assert(!!runCount))
+  const setLettersAndNumbers = result.current
   expect(runCount).toBe(1)
-  await act(async () => {
-    setLetters(incrementLetter)
-    setNumbers(increment)
-  })
+  act(setLettersAndNumbers)
   expect(runCount).toBe(2)
-  await act(async () => {
-    setLetters(incrementLetter)
-    setNumbers(increment)
-  })
+  act(setLettersAndNumbers)
   expect(runCount).toBe(3)
 })
 
@@ -791,7 +755,6 @@ it('should abort the previous promise', async () => {
   async function resolveAll() {
     resolves.forEach((resolve) => resolve())
     resolves.length = 0
-    await delay(0)
   }
   function useTest() {
     useAtomValue(effectAtom)
@@ -799,20 +762,19 @@ it('should abort the previous promise', async () => {
   }
   const { result } = renderHook(useTest)
   const setCount = result.current
-  await waitFor(() => assert(!!runCount))
 
   await resolveAll()
   expect(runCount).toBe(1)
   expect(abortedRuns).toEqual([])
   expect(completedRuns).toEqual([0])
 
-  await act(async () => setCount(increment))
+  act(() => setCount(increment))
   expect(runCount).toBe(2)
   expect(abortedRuns).toEqual([])
   expect(completedRuns).toEqual([0])
 
   // aborted run
-  await act(async () => setCount(increment))
+  act(() => setCount(increment))
   expect(runCount).toBe(3)
   expect(abortedRuns).toEqual([1])
   expect(completedRuns).toEqual([0])
@@ -836,10 +798,12 @@ it('should not infinite loop with nested atomEffects', async () => {
     return () => ++metrics.unmounted
   }
 
+  let delayedIncrement = false
   const effectAtom = atomEffect((_get, set) => {
     ++metrics.runCount1
     if (metrics.runCount1 > 1) throw new Error('infinite loop')
     Promise.resolve().then(() => {
+      delayedIncrement = true
       set(countAtom, increment)
     })
   })
@@ -857,7 +821,7 @@ it('should not infinite loop with nested atomEffects', async () => {
   const store = getDefaultStore()
   store.sub(effect2Atom, () => void 0)
 
-  await waitFor(() => assert(!!metrics.runCount1))
+  await waitFor(() => assert(delayedIncrement))
 
   if (!('dev4_get_mounted_atoms' in store)) return
   const atomSet = new Set(store.dev4_get_mounted_atoms())
@@ -879,7 +843,7 @@ it('should not infinite loop with nested atomEffects', async () => {
   })
 })
 
-it('should not rerun with get.peek', async () => {
+it('should not rerun with get.peek', () => {
   expect.assertions(1)
   const countAtom = atom(0)
   let runCount = 0
@@ -889,15 +853,12 @@ it('should not rerun with get.peek', async () => {
   })
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
-  await waitFor(() => assert(runCount === 1))
   store.set(countAtom, increment)
-  await delay(0)
   expect(runCount).toBe(1)
 })
 
 it('should trigger the error boundary when an error is thrown', async () => {
   expect.assertions(1)
-
   const effectAtom = atomEffect((_get, _set) => {
     throw new Error('effect error')
   })
@@ -914,7 +875,13 @@ it('should trigger the error boundary when an error is thrown', async () => {
       />
     )
   }
-  render(<TestComponent />, { wrapper })
+  const originalConsoleError = console.error
+  try {
+    console.error = jest.fn()
+    render(<TestComponent />, { wrapper })
+  } finally {
+    console.error = originalConsoleError
+  }
   await waitFor(() => assert(didThrow))
   expect(didThrow).toBe(true)
 })
@@ -951,12 +918,17 @@ it('should trigger an error boundary when an error is thrown in a cleanup', asyn
     )
   }
   render(<TestComponent />, { wrapper })
-  await delay(0)
-  act(() => store.set(refreshAtom, increment))
+  const originalConsoleError = console.error
+  try {
+    console.error = jest.fn()
+    act(() => store.set(refreshAtom, increment))
+  } finally {
+    console.error = originalConsoleError
+  }
   await waitFor(() => assert(didThrow))
 })
 
-it('should not suspend the component', async () => {
+it('should not suspend the component', () => {
   const countAtom = atom(0)
   const watchCounterEffect = atomEffect((get) => {
     get(countAtom)

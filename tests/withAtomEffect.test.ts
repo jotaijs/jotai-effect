@@ -4,7 +4,6 @@ import { atom, createStore } from 'jotai/vanilla'
 import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
-import { delay } from './test-utils'
 
 describe('withAtomEffect', () => {
   it('ensures readonly atoms remain readonly', () => {
@@ -30,7 +29,7 @@ describe('withAtomEffect', () => {
     expect(store.get(enhancedAtom)).toBe(6)
   })
 
-  it('calls effect on initial use and on dependencies change of the base atom', async () => {
+  it('calls effect on initial use and on dependencies change of the base atom', () => {
     const baseAtom = atom(0)
     const effectMock = vi.fn()
     const enhancedAtom = withAtomEffect(baseAtom, (get) => {
@@ -39,14 +38,12 @@ describe('withAtomEffect', () => {
     })
     const store = createStore()
     store.sub(enhancedAtom, () => {})
-    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(1)
     store.set(enhancedAtom, 1)
-    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(2)
   })
 
-  it('calls effect on initial use and on dependencies change of the enhanced atom', async () => {
+  it('calls effect on initial use and on dependencies change of the enhanced atom', () => {
     const baseAtom = atom(0)
     const effectMock = vi.fn()
     const enhancedAtom = withAtomEffect(baseAtom, (get) => {
@@ -55,14 +52,12 @@ describe('withAtomEffect', () => {
     })
     const store = createStore()
     store.sub(enhancedAtom, () => {})
-    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(1)
     store.set(enhancedAtom, 1)
-    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(2)
   })
 
-  it('cleans up when the atom is no longer in use', async () => {
+  it('cleans up when the atom is no longer in use', () => {
     const cleanupMock = vi.fn()
     const baseAtom = atom(0)
     const mountMock = vi.fn()
@@ -74,10 +69,8 @@ describe('withAtomEffect', () => {
     })
     const store = createStore()
     const unsubscribe = store.sub(enhancedAtom, () => {})
-    await Promise.resolve()
     expect(mountMock).toHaveBeenCalledTimes(1)
     unsubscribe()
-    await Promise.resolve()
     expect(cleanupMock).toHaveBeenCalledTimes(1)
   })
 
@@ -89,21 +82,19 @@ describe('withAtomEffect', () => {
     expect(enhancedAtom.read).not.toBe(read)
   })
 
-  it('does not cause infinite loops when it references itself', async () => {
+  it('does not cause infinite loops when it references itself', () => {
     const countWithEffectAtom = withAtomEffect(atom(0), (get, set) => {
       get(countWithEffectAtom)
       set(countWithEffectAtom, (v) => v + 1)
     })
     const store = createStore()
     store.sub(countWithEffectAtom, () => {})
-    await Promise.resolve()
     expect(store.get(countWithEffectAtom)).toBe(1)
     store.set(countWithEffectAtom, (v) => ++v)
-    await Promise.resolve()
     expect(store.get(countWithEffectAtom)).toBe(3)
   })
 
-  it('can change the effect of the enhanced atom', async () => {
+  it('can change the effect of the enhanced atom', () => {
     const baseAtom = atom(0)
     const effectA = vi.fn((get) => {
       get(enhancedAtom)
@@ -112,22 +103,19 @@ describe('withAtomEffect', () => {
     expect(enhancedAtom.effect).toBe(effectA)
     const store = createStore()
     store.sub(enhancedAtom, () => {})
-    await Promise.resolve()
     effectA.mockClear()
     store.set(enhancedAtom, (v) => ++v)
-    await Promise.resolve()
     expect(effectA).toHaveBeenCalledTimes(1)
     effectA.mockClear()
     const effectB = vi.fn((get) => get(baseAtom))
     enhancedAtom.effect = effectB
     expect(enhancedAtom.effect).toBe(effectB)
     store.set(enhancedAtom, (v) => ++v)
-    await Promise.resolve()
     expect(effectA).not.toHaveBeenCalled()
     expect(effectB).toHaveBeenCalledTimes(1)
   })
 
-  it('runs the cleanup function the same number of times as the effect function', async () => {
+  it('runs the cleanup function the same number of times as the effect function', () => {
     const baseAtom = atom(0)
     const effectMock = vi.fn()
     const cleanupMock = vi.fn()
@@ -140,20 +128,17 @@ describe('withAtomEffect', () => {
     })
     const store = createStore()
     const unsub = store.sub(enhancedAtom, () => {})
-    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(1)
     expect(cleanupMock).toHaveBeenCalledTimes(0)
     store.set(enhancedAtom, 1)
-    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(2)
     expect(cleanupMock).toHaveBeenCalledTimes(1)
     unsub()
-    await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(2)
     expect(cleanupMock).toHaveBeenCalledTimes(2)
   })
 
-  it('runs the cleanup function the same number of times as the effect function in React', async () => {
+  it('runs the cleanup function the same number of times as the effect function in React', () => {
     const baseAtom = atom(0)
     const effectMock1 = vi.fn()
     const cleanupMock1 = vi.fn()
@@ -184,21 +169,21 @@ describe('withAtomEffect', () => {
       useAtomValue(enhancedAtom2, { store })
     }
     const { unmount } = renderHook(Test)
-    await waitFor(() => expect(effectMock1).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(effectMock2).toHaveBeenCalledTimes(1))
+    expect(effectMock1).toHaveBeenCalledTimes(1)
+    expect(effectMock2).toHaveBeenCalledTimes(1)
     expect(cleanupMock1).toHaveBeenCalledTimes(0)
     expect(cleanupMock2).toHaveBeenCalledTimes(0)
     act(() => store.set(baseAtom, 1))
-    await waitFor(() => expect(effectMock1).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(effectMock2).toHaveBeenCalledTimes(2))
+    expect(effectMock1).toHaveBeenCalledTimes(2)
+    expect(effectMock2).toHaveBeenCalledTimes(2)
     expect(cleanupMock1).toHaveBeenCalledTimes(1)
     expect(cleanupMock2).toHaveBeenCalledTimes(1)
     act(unmount)
-    await waitFor(() => expect(cleanupMock1).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(cleanupMock2).toHaveBeenCalledTimes(2))
+    expect(cleanupMock1).toHaveBeenCalledTimes(2)
+    expect(cleanupMock2).toHaveBeenCalledTimes(2)
   })
 
-  it('calculates price and discount', async () => {
+  it('calculates price and discount', () => {
     // https://github.com/pmndrs/jotai/discussions/2876
     /*
     How can be implemented an atom to hold either a value or a calculated value at the same time?
@@ -274,22 +259,18 @@ describe('withAtomEffect', () => {
 
     const store = createStore()
     store.sub(priceAndDiscount, () => void 0)
-    await delay(0)
     expect(store.get(priceAtom)).toBe(100) // value
     expect(store.get(discountAtom)).toBe(0) // (100-100)/100*100 = 0)
 
     store.set(discountAtom, 20)
-    await delay(0)
     expect(store.get(priceAtom)).toBe(80) // 100*(1-20/100) = 80)
     expect(store.get(discountAtom)).toBe(20) // value
 
     store.set(priceAtom, 50)
-    await delay(0)
     expect(store.get(priceAtom)).toBe(50) // value
     expect(store.get(discountAtom)).toBe(50) // (100-50)/100*100 = 50)
 
     store.set(unitPriceAtom, 200)
-    await delay(0)
     expect(store.get(priceAtom)).toBe(100) // 200*(1-50/100) = 100)
     expect(store.get(discountAtom)).toBe(50) // (200-100)/200*100 = 50)
   })
