@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useAtomValue } from 'jotai/react'
 import { atom, createStore } from 'jotai/vanilla'
 import { describe, expect, it, vi } from 'vitest'

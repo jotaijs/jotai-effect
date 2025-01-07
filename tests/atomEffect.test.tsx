@@ -13,14 +13,28 @@ import {
 } from './test-utils'
 
 it('should run the effect on vanilla store', () => {
-  const store = getDefaultStore()
+  const store = createStore().unstable_derive(
+    (getAtomState, setAtomState, ...rest) => [
+      getAtomState,
+      (atom, atomState) =>
+        setAtomState(
+          atom,
+          Object.assign(atomState, {
+            label: atom.debugLabel,
+          })
+        ),
+      ...rest,
+    ]
+  )
   const countAtom = atom(0)
+  countAtom.debugLabel = 'count'
   const effectAtom = atomEffect((_, set) => {
     set(countAtom, increment)
     return () => {
       set(countAtom, 0)
     }
   })
+  effectAtom.debugLabel = 'effect'
   const unsub = store.sub(effectAtom, () => void 0)
   expect(store.get(countAtom)).toBe(1)
   unsub()
@@ -186,8 +200,8 @@ it('should allow synchronous recursion with set.recurse for first run', () => {
   const store = getDefaultStore()
   store.sub(effectAtom, () => void 0)
   expect({ runCount, watched: store.get(watchedAtom) }).toEqual({
-    runCount: 4,
-    watched: 3,
+    runCount: 4, // 2
+    watched: 3, // 2
   })
 })
 
