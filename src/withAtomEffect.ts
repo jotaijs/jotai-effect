@@ -9,8 +9,7 @@ export function withAtomEffect<T extends Atom<unknown>>(
   effect: Effect
 ): AtomWithEffect<T> {
   const effectAtom = atomEffect((get, set) => {
-    const getter = ((a) =>
-      a === targetWithEffect ? get(targetAtom) : get(a)) as typeof get
+    const getter = ((a) => (a === targetWithEffect ? get(targetAtom) : get(a))) as typeof get
     getter.peek = get.peek
     return targetWithEffect.effect(getter, set)
   })
@@ -20,9 +19,7 @@ export function withAtomEffect<T extends Atom<unknown>>(
     })
     effectAtom.debugPrivate = true
   }
-  const descriptors = Object.getOwnPropertyDescriptors(
-    targetAtom as AtomWithEffect<T>
-  )
+  const descriptors = Object.getOwnPropertyDescriptors(targetAtom as AtomWithEffect<T>)
   descriptors.read.value = (get) => {
     try {
       return get(targetAtom)

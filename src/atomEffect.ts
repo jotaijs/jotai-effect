@@ -1,14 +1,20 @@
-import type { Atom, Getter, Setter, createStore } from 'jotai/vanilla'
+import type { Atom, Getter, Setter } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 
-type AnyAtom = Atom<unknown>
-type Store = ReturnType<typeof createStore>
+const INTERNAL_flushStoreHook = Symbol.for('JOTAI.EXPERIMENTAL.FLUSHSTOREHOOK')
+const INTERNAL_syncEffectChannel = Symbol.for('JOTAI-EFFECT.EXPERIMENTAL.SYNCEFFECTCHANNEL')
+
+type Store = Parameters<NonNullable<AnyAtom['unstable_onInit']>>[0]
+type StoreWithHooks = Store & {
+  [INTERNAL_flushStoreHook]: () => void
+  [INTERNAL_syncEffectChannel]?: Set<() => void>
+}
 
 type GetAtomState = Parameters<Parameters<Store['unstable_derive']>[0]>[0]
 
 type AtomState = NonNullable<ReturnType<GetAtomState>>
 
-type Batch = Parameters<NonNullable<AtomState['u']>>[0]
+type AnyAtom = Atom<unknown>
 
 type GetterWithPeek = Getter & { peek: Getter }
 
@@ -16,103 +22,119 @@ type SetterWithRecurse = Setter & { recurse: Setter }
 
 type Cleanup = () => void
 
-export type Effect = (
-  get: GetterWithPeek,
-  set: SetterWithRecurse
-) => void | Cleanup
+export type Effect = (get: GetterWithPeek, set: SetterWithRecurse) => void | Cleanup
 
 type Ref = {
   /** epoch */
-  x: number
-  /** in progress */
-  i: number
-  /** recursing */
-  rc: number
-  /** refreshing */
-  rf?: boolean
-  /** mounted */
-  m?: boolean
-  /** from cleanup */
-  fc?: boolean
-  /** getter */
-  g?: Getter
-  /** cleanup */
-  c?: Cleanup | void
+  epoch: number
   /** pending error */
-  e?: unknown
+  error?: unknown
+  /** getter */
+  get?: Getter
 }
 
-export function atomEffect(effect: Effect) {
+export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
   const refreshAtom = atom(0)
 
-  const refAtom = atom(() => ({ i: 0, x: 0, rc: 0 }) as Ref)
+  const refAtom = atom(() => ({ inProgress: 0, epoch: 0 }) as Ref)
 
-  const internalAtom = atom((get) => {
-    get(refreshAtom)
-    const ref = get(refAtom)
-    throwPendingError(ref)
-    ref.g = get
-    return ++ref.x
-  })
+  const internalAtom = atom(
+    (get) => {
+      get(refreshAtom)
+      const ref = get(refAtom)
+      throwPendingError(ref)
+      ref.get = get
+      return ++ref.epoch
+    },
+    () => {}
+  )
 
   internalAtom.unstable_onInit = (store) => {
     const ref = store.get(refAtom)
 
+    let inProgress = 0
+    let isMounted = false
+    let isRecursing = false
+    let isRefreshing = false
+    let fromCleanup = false
+    let runCleanup: Cleanup | void
+
     function runEffect() {
-      if (!ref.m || ref.rc || (ref.i && !ref.rf)) {
+      if (!isMounted || (inProgress && !isRefreshing) || isRecursing) {
         return
       }
 
       const deps = new Map<AnyAtom, unknown>()
 
-      const getter = ((a) => {
-        const value = ref.g!(a)
+      const getter: GetterWithPeek = ((a) => {
+        const value = ref.get!(a)
         deps.set(a, value)
         return value
       }) as GetterWithPeek
+
       getter.peek = store.get
 
-      const setter = ((a, ...args) => {
+      const setter: SetterWithRecurse = ((a, ...args) => {
         try {
-          ++ref.i
+          ++inProgress
           return store.set(a, ...args)
         } finally {
-          deps.keys().forEach(ref.g!) // TODO - do we still need this?
-          --ref.i
+          --inProgress
         }
       }) as SetterWithRecurse
 
       setter.recurse = (a, ...args) => {
-        if (ref.fc) {
+        if (fromCleanup) {
           if (process.env.NODE_ENV !== 'production') {
             throw new Error('set.recurse is not allowed in cleanup')
           }
-          return void 0 as any
+          return undefined as any
         }
         try {
-          ++ref.rc
+          isRecursing = true
           return store.set(a, ...args)
         } finally {
-          try {
-            const depsChanged = Array.from(deps).some(areDifferent)
-            if (depsChanged) {
-              refresh()
-            }
-          } finally {
-            --ref.rc
+          isRecursing = false
+          const depsChanged = Array.from(deps).some(areDifferent)
+          if (depsChanged) {
+            refresh()
           }
         }
       }
 
       try {
-        ++ref.i
-        cleanup()
-        ref.c = effectAtom.effect(getter, setter)
-      } catch (e) {
-        ref.e = e
+        ++inProgress
+        runCleanup?.()
+        const cleanup = effectAtom.effect(getter, setter)
+        if (typeof cleanup === 'function') {
+          runCleanup = () => {
+            try {
+              fromCleanup = true
+              return cleanup()
+            } /* catch (error) {
+              ref.error = error
+              refresh()
+            }  */ finally {
+              fromCleanup = false
+              runCleanup = undefined
+            }
+          }
+        }
+      } /* catch (error) {
+        ref.error = error
         refresh()
-      } finally {
-        --ref.i
+      }  */ finally {
+        Array.from(deps.keys(), ref.get!)
+        --inProgress
+      }
+
+      function refresh() {
+        try {
+          isRefreshing = true
+          store.set(refreshAtom, (v) => v + 1)
+        } finally {
+          isRefreshing = false
+        }
       }
 
       function areDifferent([a, v]: [Atom<unknown>, unknown]) {
@@ -121,54 +143,28 @@ export function atomEffect(effect: Effect) {
     }
 
     const atomState = getAtomState(store, internalAtom)
+    const syncEffectChannel = ensureSyncEffectChannel(store)
 
-    const originalMountHook = atomState.h
-    atomState.h = (batch) => {
-      originalMountHook?.(batch)
-      if (atomState.m) {
-        ref.m = true
-        scheduleListener(batch, runEffect)
-      } else {
-        ref.m = false
-        scheduleListener(batch, cleanup)
-      }
-    }
-
-    const originalUpdateHook = atomState.u
-    atomState.u = (batch) => {
-      originalUpdateHook?.(batch)
-      batch[0].add(runEffect)
-    }
-
-    function scheduleListener(batch: Batch, listener: () => void) {
-      batch[0].add(listener)
-    }
-
-    function refresh() {
-      try {
-        ref.rf = true
-        store.set(refreshAtom, (v) => v + 1)
-      } finally {
-        ref.rf = false
-      }
-    }
-
-    function cleanup() {
-      if (typeof ref.c !== 'function') {
+    hookInto(atomState, 'h', function atomOnMount() {
+      if (inProgress) {
         return
       }
-      try {
-        ref.fc = true
-        ref.c()
-      } catch (e) {
-        ref.e = e
-        refresh()
-      } finally {
-        ref.fc = false
-        delete ref.c
+      if (atomState.m) {
+        isMounted = true
+        syncEffectChannel.add(runEffect)
+      } else {
+        isMounted = false
+        if (runCleanup) {
+          syncEffectChannel.add(runCleanup)
+        }
       }
-    }
+    })
+
+    hookInto(atomState, 'u', function atomOnUpdate() {
+      syncEffectChannel.add(runEffect)
+    })
   }
+  internalAtom.onMount = () => () => {}
 
   if (process.env.NODE_ENV !== 'production') {
     function setLabel(atom: Atom<unknown>, label: string) {
@@ -183,27 +179,43 @@ export function atomEffect(effect: Effect) {
   }
 
   const effectAtom = Object.assign(
-    atom((get) => get(internalAtom)),
+    atom((get) => {
+      get(internalAtom)
+    }),
     { effect }
   )
+  effectAtom.effect = effect
   return effectAtom
 
   function throwPendingError(ref: Ref) {
-    if ('e' in ref) {
-      const error = ref.e
-      delete ref.e
+    if ('error' in ref) {
+      const error = ref.error
+      delete ref.error
       throw error
     }
   }
 }
 
+function ensureSyncEffectChannel(store: Store) {
+  const storeWithHooks = store as StoreWithHooks
+  let syncEffectChannel = storeWithHooks[INTERNAL_syncEffectChannel]
+  if (!syncEffectChannel) {
+    storeWithHooks[INTERNAL_syncEffectChannel] = syncEffectChannel = new Set<() => void>()
+    hookInto(storeWithHooks, INTERNAL_flushStoreHook, () => {
+      syncEffectChannel!.forEach((fn: () => void) => fn())
+      syncEffectChannel!.clear()
+    })
+  }
+  return syncEffectChannel
+}
+
 const getAtomStateMap = new WeakMap<Store, GetAtomState>()
 
 /**
- * HACK: steal atomState to synchronously determine if
- * the atom is mounted
+ * HACK: Steals atomState to synchronously determine if
+ * the atom is mounted.
  * We return null to cause the buildStore(...args) to throw
- * to abort creating a derived store
+ * to abort creating a derived store.
  */
 function getAtomState(store: Store, atom: AnyAtom): AtomState {
   let getAtomStateFn = getAtomStateMap.get(store)
@@ -219,4 +231,16 @@ function getAtomState(store: Store, atom: AnyAtom): AtomState {
     getAtomStateMap.set(store, getAtomStateFn!)
   }
   return getAtomStateFn!(atom)!
+}
+
+function hookInto<M extends string | symbol, T extends { [K in M]?: (...args: any[]) => void }>(
+  obj: T,
+  methodName: M,
+  newMethod: NonNullable<T[typeof methodName]>
+) {
+  const originalMethod = obj[methodName]
+  obj[methodName] = ((...args: any[]) => {
+    originalMethod?.(...args)
+    newMethod(...args)
+  }) as T[typeof methodName]
 }

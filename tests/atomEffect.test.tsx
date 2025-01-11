@@ -1,33 +1,23 @@
 import React, { createElement, useEffect } from 'react'
 import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
-import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
+import { atom, createStore } from 'jotai/vanilla'
 import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import {
   ErrorBoundary,
   assert,
+  createDebugStore,
   delay,
   increment,
   incrementLetter,
 } from './test-utils'
 
 it('should run the effect on vanilla store', () => {
-  const store = createStore().unstable_derive(
-    (getAtomState, setAtomState, ...rest) => [
-      getAtomState,
-      (atom, atomState) =>
-        setAtomState(
-          atom,
-          Object.assign(atomState, {
-            label: atom.debugLabel,
-          })
-        ),
-      ...rest,
-    ]
-  )
+  const store = createDebugStore()
   const countAtom = atom(0)
   countAtom.debugLabel = 'count'
+
   const effectAtom = atomEffect((_, set) => {
     set(countAtom, increment)
     return () => {
@@ -35,7 +25,8 @@ it('should run the effect on vanilla store', () => {
     }
   })
   effectAtom.debugLabel = 'effect'
-  const unsub = store.sub(effectAtom, () => void 0)
+
+  const unsub = store.sub(effectAtom, () => {})
   expect(store.get(countAtom)).toBe(1)
   unsub()
   expect(store.get(countAtom)).toBe(0)
@@ -43,7 +34,7 @@ it('should run the effect on vanilla store', () => {
 
 it('should not call effect if immediately unsubscribed', () => {
   expect.assertions(1)
-  const store = getDefaultStore()
+  const store = createStore()
   const effect = vi.fn()
   const effectAtom = atomEffect(effect)
   const unsub = store.sub(effectAtom, () => void 0)
@@ -99,6 +90,7 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
   })
 
   let didMount = false
+  const store = createDebugStore()
   function useTest() {
     const [count, setCount] = useAtom(countAtom)
     useAtomValue(effectAtom)
@@ -107,7 +99,10 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
     }, [count])
     return setCount
   }
-  const { result, rerender, unmount } = renderHook(useTest)
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <Provider store={store as any}>{children}</Provider>
+  )
+  const { result, rerender, unmount } = renderHook(useTest, { wrapper })
   function incrementCount() {
     const setCount = result.current
     setCount(increment)
@@ -156,8 +151,8 @@ it('should not cause infinite loops when effect updates the watched atom', () =>
     runCount++
     set(watchedAtom, increment)
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
 
   const incrementWatched = () => store.set(watchedAtom, increment)
   // initial render should run the effect once
@@ -178,8 +173,8 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
       set(watchedAtom, increment)
     }, 0)
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   // changing the value should run the effect again one time
   store.set(watchedAtom, increment)
   expect(runCount).toBe(2)
@@ -197,8 +192,8 @@ it('should allow synchronous recursion with set.recurse for first run', () => {
     }
     recurse(watchedAtom, increment)
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   expect({ runCount, watched: store.get(watchedAtom) }).toEqual({
     runCount: 4, // 2
     watched: 3, // 2
@@ -220,8 +215,8 @@ it('should allow synchronous recursion with set.recurse', () => {
     }
     recurse(watchedAtom, increment)
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   store.set(watchedAtom, increment)
   expect(store.get(watchedAtom)).toBe(5)
   expect(runCount).toBe(6)
@@ -243,8 +238,8 @@ it('should allow multiple synchronous recursion with set.recurse', () => {
     recurse(watchedAtom, increment)
     recurse(watchedAtom, increment)
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   store.set(watchedAtom, increment)
   expect({ runCount, value: store.get(watchedAtom) }).toEqual({
     runCount: 6,
@@ -280,8 +275,8 @@ it('should batch updates during synchronous recursion with set.recurse', () => {
     ])
     set.recurse(updateAtom)
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   store.set(watchedAtom, increment)
   expect(store.get(lettersAndNumbersAtom)).toEqual(['a0', 'b1'])
   expect(runCount).toBe(4)
@@ -303,8 +298,8 @@ it('should allow asynchronous recursion with task delay with set.recurse', async
       recurse(watchedAtom, increment)
     })
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   await waitFor(() => assert(done))
   expect(store.get(watchedAtom)).toBe(3)
   expect(runCount).toBe(4)
@@ -325,8 +320,8 @@ it('should allow asynchronous recursion with microtask delay with set.recurse', 
       recurse(watchedAtom, increment)
     })
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   await waitFor(() => assert(store.get(watchedAtom) >= 3))
   expect(store.get(watchedAtom)).toBe(3)
   expect(runCount).toBe(4)
@@ -335,23 +330,26 @@ it('should allow asynchronous recursion with microtask delay with set.recurse', 
 it('should work with both set.recurse and set', () => {
   expect.assertions(3)
   let runCount = 0
-  const watchedAtom = atom(0)
+  const valueAtom = atom(0)
   const countAtom = atom(0)
   const effectAtom = atomEffect((get, set) => {
-    const value = get(watchedAtom)
+    const value = get(valueAtom)
+    if (value >= 5) {
+      throw new Error()
+    }
     get(countAtom)
     runCount++
     if (value === 0 || value % 3) {
-      set.recurse(watchedAtom, increment)
+      set.recurse(valueAtom, increment)
       set(countAtom, increment)
       return
     }
-    set(watchedAtom, increment)
+    set(valueAtom, increment)
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   expect(store.get(countAtom)).toBe(3)
-  expect(store.get(watchedAtom)).toBe(4)
+  expect(store.get(valueAtom)).toBe(4)
   expect(runCount).toBe(4)
 })
 
@@ -368,8 +366,8 @@ it('should disallow synchronous set.recurse in cleanup', () => {
     })
     return cleanup
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   store.set(anotherAtom, increment)
   expect(() => store.set(anotherAtom, increment)).toThrowError(
     'set.recurse is not allowed in cleanup'
@@ -394,8 +392,8 @@ it('should return value from set.recurse', () => {
       return
     }
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   expect(results).toEqual([1, 2, 3, 4, 5])
 })
 
@@ -668,8 +666,8 @@ it('should batch synchronous updates as a single transaction', () => {
       letters + String(numbers),
     ])
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
 
   expect(runCount).toBe(1)
   expect(store.get(lettersAndNumbersAtom)).toEqual(['a0'])
@@ -736,11 +734,9 @@ it('should abort the previous promise', async () => {
   const completedRuns: number[] = []
   const resolves: (() => void)[] = []
   const countAtom = atom(0)
-  const abortControllerAtom = atom<{ abortController: AbortController | null }>(
-    {
-      abortController: null,
-    }
-  )
+  const abortControllerAtom = atom<{ abortController: AbortController | null }>({
+    abortController: null,
+  })
   const effectAtom = atomEffect((get) => {
     const currentRun = runCount++
     get(countAtom)
@@ -832,8 +828,8 @@ it('should not infinite loop with nested atomEffects', async () => {
     get(readOnlyAtom)
   })
 
-  const store = getDefaultStore()
-  store.sub(effect2Atom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effect2Atom, () => {})
 
   await waitFor(() => assert(delayedIncrement))
 
@@ -865,8 +861,8 @@ it('should not rerun with get.peek', () => {
     get.peek(countAtom)
     runCount++
   })
-  const store = getDefaultStore()
-  store.sub(effectAtom, () => void 0)
+  const store = createDebugStore()
+  store.sub(effectAtom, () => {})
   store.set(countAtom, increment)
   expect(runCount).toBe(1)
 })
@@ -883,15 +879,12 @@ it('should trigger the error boundary when an error is thrown', async () => {
   let didThrow = false
   function wrapper() {
     return (
-      <ErrorBoundary
-        componentDidCatch={() => (didThrow = true)}
-        children={<TestComponent />}
-      />
+      <ErrorBoundary componentDidCatch={() => (didThrow = true)} children={<TestComponent />} />
     )
   }
   const originalConsoleError = console.error
   try {
-    console.error = jest.fn()
+    console.error = vi.fn()
     render(<TestComponent />, { wrapper })
   } finally {
     console.error = originalConsoleError
@@ -904,13 +897,17 @@ it('should trigger an error boundary when an error is thrown in a cleanup', asyn
   expect.assertions(1)
 
   const refreshAtom = atom(0)
+  refreshAtom.debugLabel = 'refresh'
+
   const effectAtom = atomEffect((get, _set) => {
     get(refreshAtom)
     return () => {
       throw new Error('effect cleanup error')
     }
   })
-  const store = createStore()
+  effectAtom.debugLabel = 'effect'
+
+  const store = createDebugStore()
   function TestComponent() {
     useAtomValue(effectAtom)
     return <div>test</div>
@@ -934,7 +931,7 @@ it('should trigger an error boundary when an error is thrown in a cleanup', asyn
   render(<TestComponent />, { wrapper })
   const originalConsoleError = console.error
   try {
-    console.error = jest.fn()
+    console.error = vi.fn()
     act(() => store.set(refreshAtom, increment))
   } finally {
     console.error = originalConsoleError
@@ -956,7 +953,7 @@ it('should not suspend the component', () => {
     }
     return null
   }
-  const store = createStore()
+  const store = createDebugStore()
   render(<App />, {
     wrapper: ({ children }) => createElement(Provider, { children, store }),
   })

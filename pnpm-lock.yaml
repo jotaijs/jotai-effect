@@ -54,8 +54,8 @@ devDependencies:
     specifier: ^2.4.2
     version: 2.4.2
   jotai:
-    specifier: https://pkg.pr.new/jotai@4934f3e
-    version: '@pkg.pr.new/jotai@4934f3e(@types/react@19.0.7)(react@19.0.0)'
+    specifier: https://pkg.pr.new/jotai@c601bd9c
+    version: '@pkg.pr.new/jotai@c601bd9c(@types/react@19.0.7)(react@19.0.0)'
   jotai-effect:
     specifier: 'link:'
     version: 'link:'
@@ -3075,9 +3075,9 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
-  '@pkg.pr.new/jotai@4934f3e(@types/react@19.0.7)(react@19.0.0)':
-    resolution: {tarball: https://pkg.pr.new/jotai@4934f3e}
-    id: '@pkg.pr.new/jotai@4934f3e'
+  '@pkg.pr.new/jotai@c601bd9c(@types/react@19.0.7)(react@19.0.0)':
+    resolution: {tarball: https://pkg.pr.new/jotai@c601bd9c}
+    id: '@pkg.pr.new/jotai@c601bd9c'
     name: jotai
     version: 2.11.0
     engines: {node: '>=12.20.0'}
