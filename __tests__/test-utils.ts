@@ -1,14 +1,35 @@
 import { Component, type ErrorInfo, type ReactNode, createElement } from 'react'
+import { createStore } from './store'
 
-export function increment(count: number) {
+type Store = ReturnType<typeof createStore>
+type GetAtomState = Parameters<Parameters<Store['unstable_derive']>[0]>[0]
+type DebugStore = Store & { getAtomState: GetAtomState }
+
+export function createDebugStore() {
+  let getAtomState: GetAtomState
+  const store = createStore().unstable_derive((...storeArgs) => {
+    ;[getAtomState] = storeArgs
+    const [, setAtomState] = storeArgs
+    storeArgs[1] = (atom, atomState) => {
+      return setAtomState(atom, Object.assign(atomState, { label: atom.debugLabel }))
+    }
+    return storeArgs
+  })
+  if (getAtomState! === undefined) {
+    throw new Error('failed to create debug store')
+  }
+  return Object.assign(store, { getAtomState }) as DebugStore
+}
+
+export function increment(count: number): number {
   return count + 1
 }
 
-export function incrementLetter(str: string) {
+export function incrementLetter(str: string): string {
   return String.fromCharCode(increment(str.charCodeAt(0)))
 }
 
-export function delay(ms: number) {
+export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
@@ -28,10 +49,7 @@ export function waitFor(
   condition: () => void,
   options?: { interval?: number; timeout?: number }
 ): Promise<void>
-export function waitFor(
-  condition: () => boolean | void,
-  { interval = 10, timeout = 1000 } = {}
-) {
+export function waitFor(condition: () => boolean | void, { interval = 10, timeout = 1000 } = {}) {
   return new Promise<void>((resolve, reject) => {
     const intervalId = setInterval(() => {
       try {
@@ -58,10 +76,7 @@ type ErrorBoundaryProps = {
   componentDidCatch?: (error: Error, errorInfo: ErrorInfo) => void
   children: ReactNode
 }
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state = { hasError: false }
 
   static getDerivedStateFromError(): ErrorBoundaryState {
@@ -72,9 +87,9 @@ export class ErrorBoundary extends Component<
     this.props.componentDidCatch?.(error, _errorInfo)
   }
 
-  render() {
+  render(): ReactNode {
     if (this.state.hasError) {
-      return createElement('div', { children: 'error' })
+      return createElement('div', {}, 'error')
     }
     return this.props.children
   }
