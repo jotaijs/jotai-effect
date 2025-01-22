@@ -40,4 +40,7 @@ export default {
     },
     historyApiFallback: true,
   },
+  experiments: {
+    topLevelAwait: true,
+  },
 }
