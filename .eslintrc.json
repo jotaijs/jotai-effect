@@ -19,8 +19,7 @@
     "react",
     "prettier",
     "react-hooks",
-    "import",
-    "jest"
+    "import"
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
@@ -47,10 +46,6 @@
     "@typescript-eslint/no-use-before-define": "off",
     "@typescript-eslint/no-empty-function": "off",
     "@typescript-eslint/no-explicit-any": "off",
-    "jest/consistent-test-it": [
-      "error",
-      { "fn": "it", "withinDescribe": "it" }
-    ],
     "import/order": [
       "error",
       {
@@ -94,13 +89,10 @@
       "@typescript-eslint/parser": [".js", ".jsx", ".ts", ".tsx"]
     },
     "import/resolver": {
+      "typescript": true,
       "node": {
         "extensions": [".js", ".jsx", ".ts", ".tsx", ".json"],
         "paths": ["src"]
-      },
-      "alias": {
-        "extensions": [".js", ".jsx", ".ts", ".tsx", ".json"],
-        "map": [["^jotai-effect$", "./src/index.ts"]]
       }
     }
   },
@@ -112,10 +104,7 @@
       }
     },
     {
-      "files": ["tests/**/*.tsx", "__tests__/**/*"],
-      "env": {
-        "jest/globals": true
-      }
+      "files": ["tests/**/*.tsx", "tests/**/*"]
     },
     {
       "files": ["./*.js"],

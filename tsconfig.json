@@ -5,17 +5,18 @@
     "downlevelIteration": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowJs": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
     "jsx": "react",
     "baseUrl": ".",
     "paths": {
       "jotai-effect": ["./src"]
     }
   },
-  "exclude": ["dist"]
+  "exclude": ["dist", "**/tests/*", "**/*.test.*"]
 }

@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtomValue } from 'jotai/react'
 import { atom, createStore } from 'jotai/vanilla'
+import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
 import { delay } from './test-utils'
@@ -31,7 +32,7 @@ describe('withAtomEffect', () => {
 
   it('calls effect on initial use and on dependencies change of the base atom', async () => {
     const baseAtom = atom(0)
-    const effectMock = jest.fn()
+    const effectMock = vi.fn()
     const enhancedAtom = withAtomEffect(baseAtom, (get) => {
       effectMock()
       get(baseAtom)
@@ -47,7 +48,7 @@ describe('withAtomEffect', () => {
 
   it('calls effect on initial use and on dependencies change of the enhanced atom', async () => {
     const baseAtom = atom(0)
-    const effectMock = jest.fn()
+    const effectMock = vi.fn()
     const enhancedAtom = withAtomEffect(baseAtom, (get) => {
       effectMock()
       get(enhancedAtom)
@@ -62,9 +63,9 @@ describe('withAtomEffect', () => {
   })
 
   it('cleans up when the atom is no longer in use', async () => {
-    const cleanupMock = jest.fn()
+    const cleanupMock = vi.fn()
     const baseAtom = atom(0)
-    const mountMock = jest.fn()
+    const mountMock = vi.fn()
     const enhancedAtom = withAtomEffect(baseAtom, () => {
       mountMock()
       return () => {
@@ -104,7 +105,7 @@ describe('withAtomEffect', () => {
 
   it('can change the effect of the enhanced atom', async () => {
     const baseAtom = atom(0)
-    const effectA = jest.fn((get) => {
+    const effectA = vi.fn((get) => {
       get(enhancedAtom)
     })
     const enhancedAtom = withAtomEffect(baseAtom, effectA)
@@ -117,7 +118,7 @@ describe('withAtomEffect', () => {
     await Promise.resolve()
     expect(effectA).toHaveBeenCalledTimes(1)
     effectA.mockClear()
-    const effectB = jest.fn((get) => get(baseAtom))
+    const effectB = vi.fn((get) => get(baseAtom))
     enhancedAtom.effect = effectB
     expect(enhancedAtom.effect).toBe(effectB)
     store.set(enhancedAtom, (v) => ++v)
@@ -128,8 +129,8 @@ describe('withAtomEffect', () => {
 
   it('runs the cleanup function the same number of times as the effect function', async () => {
     const baseAtom = atom(0)
-    const effectMock = jest.fn()
-    const cleanupMock = jest.fn()
+    const effectMock = vi.fn()
+    const cleanupMock = vi.fn()
     const enhancedAtom = withAtomEffect(baseAtom, (get) => {
       get(enhancedAtom)
       effectMock()
@@ -154,8 +155,8 @@ describe('withAtomEffect', () => {
 
   it('runs the cleanup function the same number of times as the effect function in React', async () => {
     const baseAtom = atom(0)
-    const effectMock1 = jest.fn()
-    const cleanupMock1 = jest.fn()
+    const effectMock1 = vi.fn()
+    const cleanupMock1 = vi.fn()
     const effectAtom = atomEffect((get) => {
       get(baseAtom)
       effectMock1()
@@ -170,8 +171,8 @@ describe('withAtomEffect', () => {
       },
       (_, set, value: number) => set(baseAtom, value)
     )
-    const effectMock2 = jest.fn()
-    const cleanupMock2 = jest.fn()
+    const effectMock2 = vi.fn()
+    const cleanupMock2 = vi.fn()
     const enhancedAtom2 = withAtomEffect(baseAtom, (get) => {
       get(enhancedAtom2)
       effectMock2()

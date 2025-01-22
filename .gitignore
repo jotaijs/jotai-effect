@@ -1,6 +1,6 @@
 *~
 *.swp
-node_modules
-/dist
-/jotai
 .vscode
+dist
+jotai
+node_modules
