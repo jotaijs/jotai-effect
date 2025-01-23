@@ -3,6 +3,9 @@
   "compilerOptions": {
     "outDir": "./dist/cjs",
     "module": "CommonJS",
+    "target": "es2015",
+    "moduleResolution": "node",
+    "exactOptionalPropertyTypes": false,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true
