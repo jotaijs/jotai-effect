@@ -55,7 +55,7 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
   })
 
   function useTest() {
-    const [count, setCount] = useAtom(countAtom)
+    const [, setCount] = useAtom(countAtom)
     useAtomValue(effectAtom)
     return setCount
   }
@@ -519,11 +519,9 @@ it('should abort the previous promise', async () => {
   const completedRuns: number[] = []
   const resolves: (() => void)[] = []
   const countAtom = atom(0)
-  const abortControllerAtom = atom<{ abortController: AbortController | null }>(
-    {
-      abortController: null,
-    }
-  )
+  const abortControllerAtom = atom<{ abortController: AbortController | null }>({
+    abortController: null,
+  })
   const effectAtom = atomEffect((get) => {
     const currentRun = runCount++
     get(countAtom)

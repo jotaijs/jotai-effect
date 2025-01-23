@@ -245,10 +245,7 @@ describe('withAtomEffect', () => {
 
     // reacts to changes to price
     const priceAtom = withAtomEffect(atom(100), (get, set) => {
-      set(
-        discountAtom,
-        getNextDiscount(get.peek(unitPriceAtom), get(priceAtom))
-      )
+      set(discountAtom, getNextDiscount(get.peek(unitPriceAtom), get(priceAtom)))
     })
 
     const priceAndDiscount = atom((get) => ({
