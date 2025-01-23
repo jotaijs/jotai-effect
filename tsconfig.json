@@ -18,5 +18,5 @@
       "jotai-effect": ["./src"]
     }
   },
-  "exclude": ["dist", "**/tests/*", "**/*.test.*"]
+  "exclude": ["dist"]
 }
