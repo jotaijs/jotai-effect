@@ -2,6 +2,7 @@ import React, { createElement, useEffect } from 'react'
 import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { Provider, useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
+import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import {
   ErrorBoundary,
@@ -30,7 +31,7 @@ it('should run the effect on vanilla store', async () => {
 it('should not call effect if immediately unsubscribed', async () => {
   expect.assertions(1)
   const store = getDefaultStore()
-  const effect = jest.fn()
+  const effect = vi.fn()
   const effectAtom = atomEffect(effect)
   const unsub = store.sub(effectAtom, () => void 0)
   unsub()
@@ -372,7 +373,7 @@ it('should disallow synchronous set.recurse in cleanup', async () => {
   const effectAtom = atomEffect((get, { recurse }) => {
     get(watchedAtom)
     get(anotherAtom)
-    cleanup = jest.fn(() => {
+    cleanup = vi.fn(() => {
       recurse(watchedAtom, increment)
     })
     return cleanup

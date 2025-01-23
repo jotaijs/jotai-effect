@@ -2,22 +2,33 @@
   "name": "jotai-effect",
   "description": "👻🔁",
   "version": "1.0.7",
+  "type": "module",
   "author": "David Maskasky",
+  "contributors": [
+    "Daishi Kato (https://github.com/dai-shi)"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/jotaijs/jotai-effect.git"
   },
+  "bugs": {
+    "url": "https://github.com/jotaijs/jotai-effect/issues"
+  },
+  "homepage": "https://jotai.org/docs/extensions/effect",
   "source": "./src/index.ts",
-  "main": "./dist/index.umd.js",
-  "module": "./dist/index.modern.js",
-  "types": "./dist/src/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "types": "./dist/src/index.d.ts",
-      "module": "./dist/index.modern.js",
-      "import": "./dist/index.modern.mjs",
-      "default": "./dist/index.umd.js"
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      },
+      "default": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     }
   },
   "sideEffects": false,
@@ -25,29 +36,19 @@
     "src",
     "dist"
   ],
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "compile": "microbundle build -f modern,umd --globals react=React",
-    "postcompile": "cp dist/index.modern.mjs dist/index.modern.js && cp dist/index.modern.mjs.map dist/index.modern.js.map",
-    "test": "run-s eslint tsc-test jest",
-    "eslint": "eslint --ext .js,.ts,.tsx .",
-    "jest": "jest",
-    "tsc-test": "tsc --project . --noEmit",
-    "examples:01_typescript": "DIR=01_typescript EXT=tsx webpack serve"
-  },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "preset": "ts-jest/presets/js-with-ts",
-    "testMatch": [
-      "**/__tests__/**/*.test.ts?(x)"
-    ],
-    "transform": {
-      "^.+\\.tsx?$": [
-        "ts-jest",
-        {
-          "tsconfig": "tsconfig.test.json"
-        }
-      ]
-    }
+    "compile": "rm -rf dist && pnpm run '/^compile:.*/'",
+    "compile:esm": "tsc -p tsconfig.esm.json",
+    "compile:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
+    "fix": "pnpm run '/^fix:.*/'",
+    "fix:format": "prettier --write .",
+    "fix:lint": "eslint . --fix",
+    "test": "pnpm run \"/^test:.*/\"",
+    "test:format": "prettier --list-different .",
+    "test:types": "tsc --noEmit",
+    "test:lint": "eslint .",
+    "test:spec": "vitest run"
   },
   "keywords": [
     "jotai",
@@ -57,39 +58,36 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@testing-library/react": "^14.0.0",
-    "@types/jest": "^29.5.5",
-    "@types/node": "^20.8.3",
-    "@types/react": "^18.2.25",
-    "@types/react-dom": "^18.2.11",
-    "@typescript-eslint/eslint-plugin": "^8.2.0",
-    "@typescript-eslint/parser": "^8.2.0",
-    "eslint": "^8.51.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-import-resolver-alias": "^1.1.2",
-    "eslint-plugin-import": "^2.28.1",
-    "eslint-plugin-jest": "^27.4.2",
-    "eslint-plugin-prettier": "^5.0.0",
-    "eslint-plugin-react": "^7.33.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "html-webpack-plugin": "^5.5.3",
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
-    "jotai": "2.10.3",
-    "microbundle": "^0.15.1",
-    "npm-run-all": "^4.1.5",
-    "prettier": "^3.0.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "@testing-library/dom": "10.0.0",
+    "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "eslint": "8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.7.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "happy-dom": "^15.11.7",
+    "jotai": "2.11.1",
+    "jotai-effect": "link:",
+    "prettier": "^3.4.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-error-boundary": "^4.0.11",
-    "ts-jest": "^29.1.1",
-    "ts-loader": "^9.4.4",
-    "typescript": "5.5.4",
-    "webpack": "^5.88.2",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.1"
+    "typescript": "^5.7.2",
+    "vite": "^6.0.4",
+    "vitest": "^2.1.8"
   },
   "peerDependencies": {
     "jotai": ">=2.5.0"
+  },
+  "engines": {
+    "node": ">=12.20.0"
   }
 }

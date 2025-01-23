@@ -2,6 +2,7 @@ import { StrictMode, useEffect } from 'react'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai/react'
 import { atom, getDefaultStore } from 'jotai/vanilla'
+import { describe, expect, it } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { assert, delay, increment, incrementLetter } from './test-utils'
 
