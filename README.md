@@ -12,20 +12,20 @@ npm i jotai-effect
 
 `atomEffect` is a utility function for declaring side effects and synchronizing atoms in Jotai. It is useful for observing and reacting to state changes.
 
-### Parameters
+### Signature
 
 ```ts
 type CleanupFn = () => void
 
-type EffectFn = (
+type Effect = (
   get: Getter & { peek: Getter },
   set: Setter & { recurse: Setter },
 ) => CleanupFn | void
 
-declare function atomEffect(effectFn: EffectFn): Atom<void>
+function atomEffect(effect: Effect): Atom<void>
 ```
 
-**effectFn** (required): A function for listening to state updates with `get` and writing state updates with `set`. The `effectFn` is useful for creating side effects that interact with other Jotai atoms. You can cleanup these side effects by returning a cleanup function.
+**effect** (required): A function for listening to state updates with `get` and writing state updates with `set`. The `effect` is useful for creating side effects that interact with other Jotai atoms. You can cleanup these side effects by returning a cleanup function.
 
 ### Usage
 
@@ -149,7 +149,7 @@ function MyComponent() {
   </details>
 
 - **Executes In The Next Microtask:**
-  `effectFn` runs in the next available microtask, after all Jotai synchronous read evaluations have completed.
+  `effect` runs in the next available microtask, after all Jotai synchronous read evaluations have completed.
 
   <!-- prettier-ignore -->
   <details style="cursor: pointer; user-select: none;">
@@ -346,18 +346,18 @@ Aside from mount events, the effect runs when any of its dependencies change val
 
 `withAtomEffect` binds an effect to a clone of the target atom. This is useful for creating effects that are active when the clone of the target atom is mounted.
 
-### Parameters
+### Signature
 
 ```ts
-declare function withAtomEffect<T>(
+function withAtomEffect<T>(
   targetAtom: Atom<T>,
-  effectFn: EffectFn,
+  effect: Effect,
 ): Atom<T>
 ```
 
 **targetAtom** (required): The atom to which the effect is bound.
 
-**effectFn** (required): A function for listening to state updates with `get` and writing state updates with `set`.
+**effect** (required): A function for listening to state updates with `get` and writing state updates with `set`.
 
 **Returns:** An atom that is equivalent to the target atom but having a bound effect.
 
@@ -373,6 +373,56 @@ const valuesAtom = withAtomEffect(atom(null), (get, set) => {
   })
   return unsubscribe
 })
+```
+
+## observe
+
+`observe` mounts an `effect` on the specified Jotai `store`. This is useful for running global side effects or logic at the store level. If no `store` is explicitly passed, the default Jotai store is used. An `unobserve` function is returned to unsubscribe the effect.
+
+### Signature
+
+```ts
+type Unobserve = () => Reobserve
+type Reobserve = () => Unobserve
+
+function observe(effect: Effect, store?: Store): Unobserve
+```
+
+- **effect** (required): A function for listening to state updates with `get` and writing state updates with `set`.
+- **store** (optional): A Jotai store to mount the effect on. Defaults to the global store if not provided.  
+- **returns**: An `unobserve` function that, when called, removes the effect from the store and cleans up any internal references. `unobserve` returns a `reobserve` function that can be used to reattach the effect to the store.
+
+### Usage
+
+```js
+import { observe } from 'jotai-effect'
+
+// Mount the effect using the default store
+const unobserve = observe((get, set) => {
+  console.log('someAtom changed:', get(someAtom))
+})
+...
+// Clean it up later
+unobserve()
+```
+
+This allows you to run Jotai state-dependent logic outside the typical React lifecycle, which can be convenient for application-wide or one-off effects.
+
+### Use in React
+`observe` can also be used in a React component or hook as long as a stable reference to the effect is provided. Effect invokes when an atom dependency changes, so doing this will not cause an infinite loop.
+```tsx
+const effect = (get, set) => {
+  set(logAtom, `countAtom changed: ${get(countAtom)}`)
+}
+
+function Component() {
+  const store = useStore()
+  const setCount = useSetAtom(countAtom)
+  // runs the effect when the button is clicked
+  const unobserve = observe(effect, store)
+  const increment = () => setCount((v) => v + 1)
+  return <button onClick={increment}>+</button>
+}
 ```
 
 ## Comparison with useEffect
