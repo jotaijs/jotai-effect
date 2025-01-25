@@ -1,8 +1,6 @@
 # Effect
 
-[jotai-effect](https://jotai.org/docs/extensions/effect) is a utility package for reactive side effects.
-
-These are utilities for declaring side effects and synchronizing atoms in Jotai. They are useful for observing and reacting to atom state changes.
+[jotai-effect](https://jotai.org/docs/extensions/effect) is a utility package for reactive side effects in Jotai.
 
 ## Install
 
@@ -31,27 +29,27 @@ type Unobserve = () => void
 function observe(effect: Effect, store?: Store): Unobserve
 ```
 
-**effect**: A function for listening to state updates with `get` and writing state updates with `set`. You can cleanup these side effects by returning a cleanup function.
+**effect:** A function for observing and reacting to atom state changes.
 
-**store**: A Jotai store to mount the effect on. Defaults to the global store if not provided.  
+**store:** A Jotai store to mount the effect on. Defaults to the global store if not provided.
 
-**returns**: A stable `unobserve` function that, when called, removes the effect from the store and cleans up any internal references.
+**returns:** A stable function that removes the effect from the store and cleans up any internal references.
 
 ### Usage
 
 ```js
 import { observe } from 'jotai-effect'
 
-// Mount the effect using the default store
+// activate the effect on the default store
 const unobserve = observe((get, set) => {
   set(logAtom, `someAtom changed: ${get(someAtom)}`)
 })
 
-// Clean it up later
+// Clean up the effect
 unobserve()
 ```
 
-This allows you to run Jotai state-dependent logic outside React's lifecycle, ideal for application-wide or one-off effects.
+This allows you to run Jotai state-dependent logic outside React's lifecycle, ideal for application-wide effects.
 
 ### Usage With React
 
@@ -79,6 +77,8 @@ function Component() {
 }
 ```
 
+<Stackblitz id="vitejs-vite-uk7p8i5q" file="src%2FApp.tsx" />
+
 ## atomEffect
 
 `atomEffect` creates an atom for declaring side effects that react to state changes when mounted.
@@ -89,7 +89,7 @@ function Component() {
 function atomEffect(effect: Effect): Atom<void>
 ```
 
-**effect**: A function for listening to state updates with `get` and writing state updates with `set`.
+**effect:** A function for observing and reacting to atom state changes.
 
 ### Usage
 
@@ -104,30 +104,25 @@ const logEffect = atomEffect((get, set) => {
   }
 })
 
-// activates the atomEffect while the Component is mounted
+// activates the atomEffect while Component is mounted
 function Component() {
   useAtom(logEffect)
 }
 ```
 
-<CodeSandbox id="tg9xsf" />
-
 ## withAtomEffect
 
-`withAtomEffect` binds an effect to a clone of the target atom. It activates the effect when the cloned atom is mounted.
+`withAtomEffect` binds an effect to a clone of the target atom. The effect is active while the cloned atom is mounted.
 
 ### Signature
 
 ```ts
-function withAtomEffect<T>(
-  targetAtom: Atom<T>,
-  effect: Effect
-): Atom<T>
+function withAtomEffect<T>(targetAtom: Atom<T>, effect: Effect): Atom<T>
 ```
 
-**targetAtom**: The atom to which the effect is bound.
+**targetAtom:** The atom to which the effect is bound.
 
-**effect**: A function for listening to state updates with `get` and writing state updates with `set`.
+**effect:** A function for observing and reacting to atom state changes.
 
 **Returns:** An atom that is equivalent to the target atom but having a bound effect.
 
@@ -214,7 +209,7 @@ const valuesAtom = withAtomEffect(atom(null), (get, set) => {
   </details>
 
 - **Executes In The Next Microtask:**
-  `effect` runs in the next available microtask, after synchronous evaluations complete.
+  `effect` runs in the next available microtask after synchronous evaluations complete.
 
   <!-- prettier-ignore -->
   <details style="cursor: pointer; user-select: none;">
@@ -240,7 +235,7 @@ const valuesAtom = withAtomEffect(atom(null), (get, set) => {
   </details>
 
 - **Batched Updates:**
-  Multiple synchronous updates are batched as a single atomic transaction:
+  Multiple synchronous updates are batched as a single atomic transaction.
 
   <!-- prettier-ignore -->
   <details style="cursor: pointer; user-select: none;">
@@ -283,7 +278,7 @@ const valuesAtom = withAtomEffect(atom(null), (get, set) => {
   </details>
 
 - **Idempotency:**
-`atomEffect` runs once per state change, regardless of how many times it is referenced.
+  `atomEffect` runs once per state change, regardless of how many times it is referenced.
 
   <!-- prettier-ignore -->
   <details style="cursor: pointer; user-select: none;">
@@ -302,7 +297,7 @@ const valuesAtom = withAtomEffect(atom(null), (get, set) => {
   console.log(i) // 1
   ```
 
-  </details>
+    </details>
 
 ## Dependency Management
 
@@ -420,5 +415,5 @@ atomEffects are distinguished from useEffect in a few other ways. They can direc
 
 ### It's up to you
 
-Both useEffect and atomEffect have their own advantages and applications. Your project’s specific needs and your comfort level should guide your selection.
+Both useEffect and atomEffect have their own advantages and applications. Your project's specific needs and your comfort level should guide your selection.
 Always lean towards an approach that gives you a smoother, more intuitive development experience. Happy coding!
