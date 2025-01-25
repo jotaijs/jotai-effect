@@ -36,7 +36,7 @@ function observe(effect: Effect, store?: Store): Unobserve
 
 **store** (optional): A Jotai store to mount the effect on. Defaults to the global store if not provided.  
 
-**returns**: An `unobserve` function that, when called, removes the effect from the store and cleans up any internal references. `unobserve` returns a `reobserve` function that can be used to reattach the effect to the store.
+**returns**: A stable `unobserve` function that, when called, removes the effect from the store and cleans up any internal references. `unobserve` returns a stable `reobserve` function that can be used to reattach the effect to the store.
 
 ### Usage
 
@@ -56,6 +56,44 @@ const unobserveAgain = reobserve()
 ```
 
 This allows you to run Jotai state-dependent logic outside the typical React lifecycle, which can be convenient for application-wide or one-off effects.
+
+### Usage With React
+When using a Jotai Provider, you must pass the store to both `observe` and the `Provider` to ensure the effect is mounted on the correct store.
+```tsx
+const store = createStore()
+const unobserve = observe((get, set) => {
+  set(logAtom, 'someAtom changed:', get(someAtom))
+}, store)
+...
+<Provider store={store}>
+  ...
+</Provider>
+```
+Use observe in a useEffect
+```tsx
+function effect(get: Getter, set: Setter) {
+  set(logAtom, 'someAtom changed:', get(someAtom))
+}
+function Component() {
+  const store = useStore()
+  useEffect(() => {
+    const unobserve = observe(effect, store)
+    return () => void unobserve()
+  }, [store])
+  // ...
+}
+```
+Or use directly in a React Component ensuring a stable reference to effect is passed.
+```ts
+function effect(get: Getter, set: Setter) {
+  set(logAtom, 'someAtom changed:', get(someAtom))
+}
+function Component() {
+  const store = useStore()
+  const unobserve = observe(effect, store)
+  useEffect(() => () => void unobserve(), [])
+}
+```
 
 ## atomEffect
 
