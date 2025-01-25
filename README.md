@@ -7,7 +7,7 @@ These are utilities for declaring side effects and synchronizing atoms in Jotai.
 ## install
 
 ```
-npm i jotai-effect
+npm install jotai-effect
 ```
 
 ## observe
