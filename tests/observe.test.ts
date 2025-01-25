@@ -176,4 +176,49 @@ describe('observe', () => {
 
     unsubscribe2()
   })
+
+  it('should allow reobserving', async () => {
+    const store = createStore()
+    const countAtom = atom(0)
+    let runCount = 0
+    function effect(get: Getter) {
+      ++runCount
+      get(countAtom)
+    }
+    const unobserve = observe(effect, store)
+    await delay(0)
+    expect(runCount).toBe(1)
+    store.set(countAtom, increment)
+    await delay(0)
+    expect(runCount).toBe(2)
+    const reobserve = unobserve()
+    store.set(countAtom, increment)
+    await delay(0)
+    expect(runCount).toBe(2)
+    reobserve()
+    store.set(countAtom, increment)
+    await delay(0)
+    expect(runCount).toBe(3)
+  })
+
+  it('should return stable unobserve and reobserve functions', async () => {
+    const store = createStore()
+    const effect = () => {}
+    const unobserve1 = observe(effect, store)
+    const unobserve2 = observe(effect, store)
+    expect(unobserve1).toBe(unobserve2)
+    const reobserve1 = unobserve1()
+    const reobserve2 = unobserve2()
+    expect(reobserve1).toBe(reobserve2)
+    const unobserve3 = reobserve1()
+    const unobserve4 = reobserve2()
+    expect(unobserve3).not.toBe(unobserve1)
+    expect(unobserve3).toBe(unobserve4)
+    const reobserve3 = unobserve3()
+    const reobserve4 = unobserve4()
+    expect(reobserve3).not.toBe(reobserve1)
+    expect(reobserve3).toBe(reobserve4)
+    const unobserve5 = observe(effect, store)
+    expect(unobserve5).not.toBe(unobserve1)
+  })
 })
