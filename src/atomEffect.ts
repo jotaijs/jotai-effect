@@ -2,12 +2,16 @@ import type { Atom, Getter, Setter } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 
 type Cleanup = () => void
+
 type GetterWithPeek = Getter & { peek: Getter }
+
 type SetterWithRecurse = Setter & { recurse: Setter }
-export type Effect = Parameters<typeof atomEffect>[0]
-export type AtomWithEffect<T extends Atom<unknown> = Atom<void>> = T & {
-  effect: Effect
-}
+
+export type Effect = (
+  get: GetterWithPeek,
+  set: SetterWithRecurse
+) => void | Cleanup
+
 type Ref = {
   /** inProgress */
   i: number
@@ -31,7 +35,7 @@ type Ref = {
 
 export function atomEffect(
   effect: (get: GetterWithPeek, set: SetterWithRecurse) => void | Cleanup
-): AtomWithEffect {
+): Atom<void> & { effect: Effect } {
   const refreshAtom = atom(0)
   const refAtom = atom(
     () => ({ i: 0 }) as Ref,
@@ -119,7 +123,9 @@ export function atomEffect(
     setLabel(refAtom, 'ref')
     setLabel(baseAtom, 'base')
   }
-  const effectAtom = atom((get) => void get(baseAtom)) as AtomWithEffect
+  const effectAtom = atom((get) => void get(baseAtom)) as Atom<void> & {
+    effect: Effect
+  }
   effectAtom.effect = effect
   return effectAtom
   function refresh(ref: Ref) {

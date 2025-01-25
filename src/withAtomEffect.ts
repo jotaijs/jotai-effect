@@ -1,11 +1,11 @@
 import type { Atom } from 'jotai/vanilla'
-import type { AtomWithEffect, Effect } from './atomEffect'
+import type { Effect } from './atomEffect'
 import { atomEffect } from './atomEffect'
 
 export function withAtomEffect<T extends Atom<unknown>>(
   targetAtom: T,
   effect: Effect
-): AtomWithEffect<T> {
+): T & { effect: Effect } {
   const effectAtom = atomEffect((get, set) => {
     const getter = ((a) =>
       a === targetWithEffect ? get(targetAtom) : get(a)) as typeof get
@@ -19,7 +19,7 @@ export function withAtomEffect<T extends Atom<unknown>>(
     effectAtom.debugPrivate = true
   }
   const descriptors = Object.getOwnPropertyDescriptors(
-    targetAtom as AtomWithEffect<T>
+    targetAtom as T & { effect: Effect }
   )
   descriptors.read.value = (get) => {
     try {
