@@ -2,15 +2,19 @@
 
 [jotai-effect](https://jotai.org/docs/extensions/effect) is a utility package for reactive side effects.
 
+These are utilities for declaring side effects and synchronizing atoms in Jotai. They are useful for observing and reacting to atom state changes.
+
 ## install
 
 ```
 npm i jotai-effect
 ```
 
-## atomEffect
+## observe
 
-`atomEffect` is a utility function for declaring side effects and synchronizing atoms in Jotai. It is useful for observing and reacting to state changes.
+`observe` mounts an `effect` for watching state changes on the specified Jotai `store`. `observe` is useful for running global side effects or logic at the store level.
+
+If you don't have access to the store object and are not using the default store, you should use `atomEffect` or `withAtomEffect` instead.
 
 ### Signature
 
@@ -22,10 +26,48 @@ type Effect = (
   set: Setter & { recurse: Setter },
 ) => CleanupFn | void
 
-function atomEffect(effect: Effect): Atom<void>
+type Unobserve = () => Reobserve
+type Reobserve = () => Unobserve
+
+function observe(effect: Effect, store?: Store): Unobserve
 ```
 
 **effect** (required): A function for listening to state updates with `get` and writing state updates with `set`. The `effect` is useful for creating side effects that interact with other Jotai atoms. You can cleanup these side effects by returning a cleanup function.
+
+**store** (optional): A Jotai store to mount the effect on. Defaults to the global store if not provided.  
+
+**returns**: An `unobserve` function that, when called, removes the effect from the store and cleans up any internal references. `unobserve` returns a `reobserve` function that can be used to reattach the effect to the store.
+
+### Usage
+
+```js
+import { observe } from 'jotai-effect'
+
+// Mount the effect using the default store
+const unobserve = observe((get, set) => {
+  set(logAtom, 'someAtom changed:', get(someAtom))
+})
+...
+// Clean it up later
+const reobserve = unobserve()
+
+// Reattach the effect to the store
+const unobserveAgain = reobserve()
+```
+
+This allows you to run Jotai state-dependent logic outside the typical React lifecycle, which can be convenient for application-wide or one-off effects.
+
+## atomEffect
+
+`atomEffect` is an atom creator for declaring side effects and synchronizing atoms in Jotai. It is useful for observing and reacting to state changes when the atomEffect is mounted.
+
+### Signature
+
+```ts
+function atomEffect(effect: Effect): Atom<void>
+```
+
+**effect** (required): A function for listening to state updates with `get` and writing state updates with `set`.
 
 ### Usage
 
@@ -34,24 +76,21 @@ Subscribe to Atom Changes
 ```js
 import { atomEffect } from 'jotai-effect'
 
-const loggingEffect = atomEffect((get, set) => {
+const logEffect = atomEffect((get, set) => {
   // runs on mount or whenever someAtom changes
-  const value = get(someAtom)
-  loggingService.setValue(value)
+  set(logAtom, get(someAtom))
+
+  return () => {
+    // unmount is called when the Component unmounts
+    set(logAtom, 'unmounting')
+  }
 })
-```
 
-Setup and Teardown Side Effects
-
-```js
-import { atomEffect } from 'jotai-effect'
-
-const subscriptionEffect = atomEffect((get, set) => {
-  const unsubscribe = subscribe((value) => {
-    set(valueAtom, value)
-  })
-  return unsubscribe
-})
+// mounts to activate the atomEffect when Component mounts
+function Component() {
+  useAtom(logEffect)
+  // ...
+}
 ```
 
 ### Mounting with Atoms or Hooks
@@ -61,20 +100,50 @@ After defining an effect using `atomEffect`, it can be integrated within another
 ```js
 const anAtom = atom((get) => {
   // mounts the atomEffect when anAtom mounts
-  get(loggingEffect)
-  // ...
+  get(logEffect)
 })
 
-// mounts the atomEffect when the component mounts
+// mounts to activate the atomEffect when MyComponent mounts
 function MyComponent() {
-  useAtom(subscriptionEffect)
+  useAtom(logEffect)
   // ...
 }
 ```
 
 <CodeSandbox id="tg9xsf" />
 
-### The `atomEffect` behavior
+## withAtomEffect
+
+`withAtomEffect` binds an effect to a clone of the target atom. This is useful for creating effects that are active when the clone of the target atom is mounted.
+
+### Signature
+
+```ts
+function withAtomEffect<T>(
+  targetAtom: Atom<T>,
+  effect: Effect,
+): Atom<T>
+```
+
+**targetAtom** (required): The atom to which the effect is bound.
+
+**effect** (required): A function for listening to state updates with `get` and writing state updates with `set`.
+
+**Returns:** An atom that is equivalent to the target atom but having a bound effect.
+
+### Usage
+
+```js
+import { withAtomEffect } from 'jotai-effect'
+
+const valuesAtom = withAtomEffect(atom(null), (get, set) => {
+  // runs when valuesAtom is mounted
+  set(valuesAtom, get(countAtom))
+  return unsubscribe
+})
+```
+
+## The `Effect` behavior
 
 - **Cleanup Function:**
   The cleanup function is invoked on unmount or before re-evaluation.
@@ -165,7 +234,7 @@ function MyComponent() {
     get(logAtom) // [0]
     set(countAtom, increment) // effect runs in next microtask
     get(logAtom) // [0]
-    await Promise.resolve().then()
+    await Promise.resolve()
     get(logAtom) // [0, 1]
   })
   store.set(setCountAndReadLog)
@@ -181,18 +250,19 @@ function MyComponent() {
     <summary>Example</summary>
 
   ```js
-  const enabledAtom = atom(false)
-  const countAtom = atom(0)
-  const updateEnabledAndCount = atom(null, (get, set) => {
-    set(enabledAtom, (value) => !value)
-    set(countAtom, (value) => value + 1)
+  const countTensAtom = atom(0)
+  const countOnesAtom = atom(0)
+  const updateTensAndOnes = atom(null, (get, set) => {
+    set(countTensAtom, (value) => value + 1)
+    set(countOnesAtom, (value) => value + 1)
   })
   const combos = atom([])
   const combosEffect = atomEffect((get, set) => {
-    set(combos, (arr) => [...arr, [get(enabledAtom), get(countAtom)]])
+    const value = get(countTensAtom) * 10 + get(countOnesAtom)
+    set(combos, (arr) => [...arr, value])
   })
-  store.set(updateEnabledAndCount)
-  store.get(combos) // [[false, 0], [true, 1]]
+  store.set(updateTensAndOnes)
+  store.get(combos) // [00, 11]
   ```
 
   </details>
@@ -239,7 +309,7 @@ function MyComponent() {
 
   </details>
 
-### Dependency Management
+## Dependency Management
 
 Aside from mount events, the effect runs when any of its dependencies change value.
 
@@ -306,13 +376,9 @@ Aside from mount events, the effect runs when any of its dependencies change val
   atomEffect((get, set) => {
     // runs once on mount
     // does not update when `idAtom` changes
-    const unsubscribe = subscribe((valueAtom) => {
-      const value = get(valueAtom)
-      // ...
-    })
+    set(logAtom, get(valueAtom))
     return () => {
-      const id = get(idAtom)
-      unsubscribe(id)
+      get(idAtom)
     }
   })
   ```
@@ -341,89 +407,6 @@ Aside from mount events, the effect runs when any of its dependencies change val
   ```
 
   </details>
-
-## withAtomEffect
-
-`withAtomEffect` binds an effect to a clone of the target atom. This is useful for creating effects that are active when the clone of the target atom is mounted.
-
-### Signature
-
-```ts
-function withAtomEffect<T>(
-  targetAtom: Atom<T>,
-  effect: Effect,
-): Atom<T>
-```
-
-**targetAtom** (required): The atom to which the effect is bound.
-
-**effect** (required): A function for listening to state updates with `get` and writing state updates with `set`.
-
-**Returns:** An atom that is equivalent to the target atom but having a bound effect.
-
-### Usage
-
-```js
-import { withAtomEffect } from 'jotai-effect'
-
-const valuesAtom = withAtomEffect(atom(null), (get, set) => {
-  // runs when valuesAtom is mounted
-  const unsubscribe = subscribe((value) => {
-    set(valuesAtom, value)
-  })
-  return unsubscribe
-})
-```
-
-## observe
-
-`observe` mounts an `effect` on the specified Jotai `store`. This is useful for running global side effects or logic at the store level. If no `store` is explicitly passed, the default Jotai store is used. An `unobserve` function is returned to unsubscribe the effect.
-
-### Signature
-
-```ts
-type Unobserve = () => Reobserve
-type Reobserve = () => Unobserve
-
-function observe(effect: Effect, store?: Store): Unobserve
-```
-
-- **effect** (required): A function for listening to state updates with `get` and writing state updates with `set`.
-- **store** (optional): A Jotai store to mount the effect on. Defaults to the global store if not provided.  
-- **returns**: An `unobserve` function that, when called, removes the effect from the store and cleans up any internal references. `unobserve` returns a `reobserve` function that can be used to reattach the effect to the store.
-
-### Usage
-
-```js
-import { observe } from 'jotai-effect'
-
-// Mount the effect using the default store
-const unobserve = observe((get, set) => {
-  console.log('someAtom changed:', get(someAtom))
-})
-...
-// Clean it up later
-unobserve()
-```
-
-This allows you to run Jotai state-dependent logic outside the typical React lifecycle, which can be convenient for application-wide or one-off effects.
-
-### Use in React
-`observe` can also be used in a React component or hook as long as a stable reference to the effect is provided. Effect invokes when an atom dependency changes, so doing this will not cause an infinite loop.
-```tsx
-const effect = (get, set) => {
-  set(logAtom, `countAtom changed: ${get(countAtom)}`)
-}
-
-function Component() {
-  const store = useStore()
-  const setCount = useSetAtom(countAtom)
-  // runs the effect when the button is clicked
-  const unobserve = observe(effect, store)
-  const increment = () => setCount((v) => v + 1)
-  return <button onClick={increment}>+</button>
-}
-```
 
 ## Comparison with useEffect
 
