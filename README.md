@@ -26,8 +26,7 @@ type Effect = (
   set: Setter & { recurse: Setter },
 ) => CleanupFn | void
 
-type Unobserve = () => Reobserve
-type Reobserve = () => Unobserve
+type Unobserve = () => void
 
 function observe(effect: Effect, store?: Store): Unobserve
 ```
@@ -36,7 +35,7 @@ function observe(effect: Effect, store?: Store): Unobserve
 
 **store** (optional): A Jotai store to mount the effect on. Defaults to the global store if not provided.  
 
-**returns**: A stable `unobserve` function that, when called, removes the effect from the store and cleans up any internal references. `unobserve` returns a stable `reobserve` function that can be used to reattach the effect to the store.
+**returns**: A stable `unobserve` function that, when called, removes the effect from the store and cleans up any internal references.
 
 ### Usage
 
@@ -49,10 +48,7 @@ const unobserve = observe((get, set) => {
 })
 ...
 // Clean it up later
-const reobserve = unobserve()
-
-// Reattach the effect to the store
-const unobserveAgain = reobserve()
+unobserve()
 ```
 
 This allows you to run Jotai state-dependent logic outside the typical React lifecycle, which can be convenient for application-wide or one-off effects.
@@ -76,10 +72,7 @@ function effect(get: Getter, set: Setter) {
 }
 function Component() {
   const store = useStore()
-  useEffect(() => {
-    const unobserve = observe(effect, store)
-    return () => void unobserve()
-  }, [store])
+  useEffect(() => observe(effect, store), [store])
   // ...
 }
 ```
@@ -91,7 +84,7 @@ function effect(get: Getter, set: Setter) {
 function Component() {
   const store = useStore()
   const unobserve = observe(effect, store)
-  useEffect(() => () => void unobserve(), [])
+  useEffect(() => unobserve, [])
 }
 ```
 

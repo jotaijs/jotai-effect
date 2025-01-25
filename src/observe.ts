@@ -3,8 +3,7 @@ import type { Effect } from './atomEffect'
 import { atomEffect } from './atomEffect'
 
 type Store = ReturnType<typeof getDefaultStore>
-type Unobserve = () => Reobserve
-type Reobserve = () => Unobserve
+type Unobserve = () => void
 
 const storeEffects = new WeakMap<Store, Map<Effect, Unobserve>>()
 
@@ -20,8 +19,7 @@ export function observe(
   if (!unobserve) {
     const effectAtom = atomEffect(effect)
     let unsubscribe: (() => void) | void = store.sub(effectAtom, () => {})
-    const reobserve: Reobserve = () => (unsubscribe = observe(effect, store))
-    unobserve = (): Reobserve => {
+    unobserve = () => {
       if (unsubscribe) {
         effectSubscriptions.delete(effect)
         if (effectSubscriptions.size === 0) {
@@ -29,7 +27,6 @@ export function observe(
         }
         unsubscribe = void unsubscribe()
       }
-      return reobserve
     }
     effectSubscriptions.set(effect, unobserve)
   }
