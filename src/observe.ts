@@ -20,14 +20,14 @@ export function observe(
   if (!unobserve) {
     const effectAtom = atomEffect(effect)
     let unsubscribe: (() => void) | void = store.sub(effectAtom, () => {})
-    const reobserve: Reobserve = () => (unobserve = observe(effect, store))
+    const reobserve: Reobserve = () => (unsubscribe = observe(effect, store))
     unobserve = (): Reobserve => {
       if (unsubscribe) {
         effectSubscriptions.delete(effect)
         if (effectSubscriptions.size === 0) {
           storeEffects.delete(store)
         }
-        unsubscribe = unsubscribe()
+        unsubscribe = void unsubscribe()
       }
       return reobserve
     }
