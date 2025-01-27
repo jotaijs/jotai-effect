@@ -1,7 +1,7 @@
 {
   "name": "jotai-effect",
   "description": "👻🔁",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "type": "module",
   "author": "David Maskasky",
   "contributors": [
@@ -48,6 +48,7 @@
     "fix": "pnpm run '/^fix:.*/'",
     "fix:format": "prettier --write .",
     "fix:lint": "eslint --config ./eslint.config.ts --fix .",
+    "pretest": "pnpm compile",
     "test": "pnpm run \"/^test:.*/\"",
     "test:format": "prettier --list-different .",
     "test:types": "tsc --noEmit",
