@@ -137,7 +137,7 @@ export function atomEffect(
     }
   }
   function cleanup(ref: Ref) {
-    if (!ref.c) return
+    if (typeof ref.c !== 'function') return
     try {
       ref.fc = true
       ref.c()
