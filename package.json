@@ -22,8 +22,8 @@
     "./package.json": "./package.json",
     ".": {
       "import": {
-        "types": "./src/index.ts",
-        "default": "./src/index.ts"
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
       },
       "require": {
         "types": "./dist/cjs/index.d.ts",
