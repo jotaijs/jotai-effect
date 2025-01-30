@@ -2,11 +2,18 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "module": "esnext",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true
   },
   "include": ["src"],
-  "exclude": ["**/tests/*", "**/*.test.*"]
+  "exclude": ["**/tests/*", "**/*.test.*"],
+  "tsc-alias": {
+    "forceReplace": true,
+    "replaceExtensions": {
+      ".ts": ".js",
+      ".tsx": ".js"
+    },
+    "resolveFullPaths": true
+  }
 }
