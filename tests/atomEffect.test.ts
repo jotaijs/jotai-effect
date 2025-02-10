@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { createElement } from 'react'
-import { act, render, waitFor } from '@testing-library/react'
+import { createElement, StrictMode } from 'react'
+import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Provider, useAtomValue } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
@@ -10,7 +10,14 @@ import {
   INTERNAL_initializeStoreHooks,
 } from 'jotai/vanilla/internals'
 import { atomEffect } from '../src/atomEffect'
-import { assert, createDebugStore, delay, incrementLetter } from './test-utils'
+import {
+  assert,
+  createDebugStore,
+  createDeferred,
+  DeferredPromise,
+  delay,
+  incrementLetter,
+} from './test-utils'
 
 it('should run the effect on vanilla store', function test() {
   const countAtom = atom(0)
@@ -280,13 +287,16 @@ it('should allow asynchronous recursion with microtask delay with set.recurse', 
   const watchedAtom = atom(0)
   watchedAtom.debugLabel = 'watchedAtom'
 
+  const deferred = createDeferred()
   const effectAtom = atomEffect((get, { recurse }) => {
     const value = get(watchedAtom)
     ++runCount
     if (value >= 3) {
+      deferred.resolve()
       return
     }
     Promise.resolve().then(() => {
+      console.log('recurse')
       recurse(watchedAtom, (v) => v + 1)
     })
   })
@@ -294,7 +304,7 @@ it('should allow asynchronous recursion with microtask delay with set.recurse', 
 
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
-  await waitFor(() => assert(store.get(watchedAtom) >= 3))
+  await deferred
   expect(store.get(watchedAtom)).toBe(3)
   expect(runCount).toBe(4)
 })
@@ -734,7 +744,7 @@ it('should abort the previous promise', async function test() {
   let runCount = 0
   const abortedRuns: number[] = []
   const completedRuns: number[] = []
-  const resolves: (() => void)[] = []
+  const resolves: DeferredPromise[] = []
   const countAtom = atom(0)
   countAtom.debugLabel = 'countAtom'
 
@@ -759,11 +769,13 @@ it('should abort the previous promise', async function test() {
     signal.addEventListener('abort', abortCallback)
 
     abortControllerRef.abortController = abortController
-    new Promise<void>((resolve) => resolves.push(resolve)).then(() => {
-      if (aborted) return
-      abortControllerRef.abortController = null
-      completedRuns.push(currentRun)
-    })
+    resolves.push(
+      createDeferred(() => {
+        if (aborted) return
+        abortControllerRef.abortController = null
+        completedRuns.push(currentRun)
+      })
+    )
     return () => {
       abortControllerRef.abortController?.abort()
       abortControllerRef.abortController = null
@@ -773,7 +785,7 @@ it('should abort the previous promise', async function test() {
   effectAtom.debugLabel = 'effectAtom'
 
   async function resolveAll() {
-    resolves.forEach((resolve) => resolve())
+    resolves.forEach(({ resolve }) => resolve())
     resolves.length = 0
   }
 
@@ -818,21 +830,13 @@ it('should not infinite loop with nested atomEffects', async function test() {
     }
   }
 
-  let resolve: () => Promise<void>
+  let deferred: DeferredPromise
   const effect1Atom = atomEffect((_get, set) => {
     ++metrics.runCount1
     if (metrics.runCount1 > 1) {
       throw new Error('infinite loop')
     }
-    const promise: Promise<void> = new Promise<void>(
-      (r) =>
-        (resolve = () => {
-          r()
-          return promise
-        })
-    ).then(() => {
-      set(countAtom, (v) => v + 1)
-    })
+    deferred = createDeferred(() => set(countAtom, (v) => v + 1))
   })
   effect1Atom.debugLabel = 'effect1Atom'
 
@@ -857,7 +861,7 @@ it('should not infinite loop with nested atomEffects', async function test() {
     unmounted: 0,
   })
 
-  await resolve!()
+  await deferred!.resolve()
 
   expect(metrics).toEqual({
     mounted: 1,
@@ -959,25 +963,22 @@ it('should allow calling recurse asynchronously in effect', async function test(
   const refreshAtom = atom(0)
   refreshAtom.debugLabel = 'refreshAtom'
 
-  const resolves: (() => void)[] = []
+  const resolves: DeferredPromise[] = []
   const effectAtom = atomEffect((get, { recurse }) => {
     get(refreshAtom)
-    const promise: Promise<void> = new Promise<void>((r) =>
-      resolves.push(() => {
-        r()
-        return promise
+    resolves.push(
+      createDeferred(() => {
+        recurse(countAtom, (v) => v + 1)
       })
-    ).then(() => {
-      recurse(countAtom, (v) => v + 1)
-    })
+    )
   })
   effectAtom.debugLabel = 'effect'
 
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
   store.set(refreshAtom, (v) => v + 1)
-  await expect(resolves[1]!()).resolves.not.toThrow()
-  await expect(resolves[0]!()).resolves.not.toThrow()
+  await expect(resolves[1]!.resolve()).resolves.not.toThrow()
+  await expect(resolves[0]!.resolve()).resolves.not.toThrow()
 })
 
 it('should not add dependencies added asynchronously', async function test() {
@@ -987,17 +988,11 @@ it('should not add dependencies added asynchronously', async function test() {
   refreshAtom.debugLabel = 'refreshAtom'
 
   let runCount = 0
-  let resolve: () => Promise<void>
+  let deferred: DeferredPromise
   const effectAtom = atomEffect((get) => {
     ++runCount
     get(refreshAtom)
-    const promise: Promise<void> = new Promise<void>(
-      (r) =>
-        (resolve = () => {
-          r()
-          return promise
-        })
-    ).then(() => {
+    deferred = createDeferred(() => {
       get(countAtom)
     })
   })
@@ -1005,7 +1000,7 @@ it('should not add dependencies added asynchronously', async function test() {
 
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
-  await resolve!()
+  await deferred!.resolve()
   store.set(refreshAtom, (v) => v + 1)
   store.set(countAtom, (v) => v + 1)
   expect(runCount).toBe(2)
@@ -1045,4 +1040,66 @@ it('gets the right internals from the store', function test() {
   expect(buildingBlocks[13]).toHaveLength(0)
   expect(buildingBlocks[12]).toBeInstanceOf(Function) // flushCallbacks
   expect(buildingBlocks[12]).toHaveLength(0)
+})
+
+it('should not run the effect when the effectAtom is unmounted', function test() {
+  const countAtom = atom(0)
+  countAtom.debugLabel = 'countAtom'
+
+  let runCount = 0
+  const effectAtom = atomEffect((get) => {
+    get(countAtom)
+    ++runCount
+  })
+  effectAtom.debugLabel = 'effectAtom'
+
+  const store = createDebugStore()
+  const unsub = store.sub(effectAtom, () => {})
+  expect(runCount).toBe(1)
+  runCount = 0
+  unsub()
+  store.set(countAtom, (v) => v + 1)
+  expect(runCount).toBe(0)
+})
+
+it('should work in StrictMode', async () => {
+  const watchedAtom = atom(0)
+  let runCount = 0
+  let cleanupCount = 0
+
+  const effectAtom = atomEffect((get, set) => {
+    get(watchedAtom)
+    runCount++
+    set(watchedAtom, (v) => v + 1)
+    return () => {
+      cleanupCount++
+    }
+  })
+
+  const store = createDebugStore()
+
+  function useTest() {
+    useAtomValue(effectAtom, { store })
+  }
+
+  const { rerender, unmount, result } = renderHook(useTest, {
+    wrapper: StrictMode,
+  })
+
+  await waitFor(() => assert(runCount === 1))
+  expect(runCount).toBe(1) // effect ran once
+  // Watched atom incremented once
+  expect(result.current).toBe(1)
+
+  // Rerender should NOT re-run the effect
+  rerender()
+  await delay(0)
+  expect(runCount).toBe(1)
+
+  // Unmount should clean up once
+  unmount()
+  expect(cleanupCount).toBe(1)
+  // Double-unmount should not run cleanup again
+  unmount()
+  expect(cleanupCount).toBe(1)
 })

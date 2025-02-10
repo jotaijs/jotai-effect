@@ -111,3 +111,19 @@ export class ErrorBoundary extends Component<
     return this.props.children
   }
 }
+
+export type DeferredPromise<T = void> = Promise<T> & {
+  resolve: (value: T) => void
+  reject: (reason?: any) => void
+}
+
+export function createDeferred<T = void>(
+  ...[onfulfilled, onrejected]: Parameters<Promise<T>['then']>
+): DeferredPromise<T> {
+  let resolve: DeferredPromise<T>['resolve']
+  let reject: DeferredPromise<T>['reject']
+  const promise = new Promise<T>(
+    (res, rej) => ([resolve, reject] = [res, rej])
+  ).then(onfulfilled, onrejected) as DeferredPromise<T>
+  return Object.assign(promise, { resolve: resolve!, reject: reject! })
+}
