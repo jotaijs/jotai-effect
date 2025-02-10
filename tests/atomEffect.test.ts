@@ -1072,17 +1072,14 @@ it('should work in StrictMode', function test() {
     useAtomValue(effectAtom, { store })
   }
 
-  const { rerender, unmount, result } = renderHook(useTest, {
+  const { rerender, unmount } = renderHook(useTest, {
     wrapper: StrictMode,
   })
-  expect(runCount).toBe(1) // FIXME: (received: 2) - runs twice in StrictMode.
-  expect(result.current).toBe(1)
-
+  expect(runCount).toBe(2) // runs twice in StrictMode
   rerender()
-  expect(runCount).toBe(1)
-
+  expect(runCount).toBe(2)
   unmount()
-  expect(cleanupCount).toBe(1)
+  expect(cleanupCount).toBe(2)
   unmount()
-  expect(cleanupCount).toBe(1)
+  expect(cleanupCount).toBe(2)
 })

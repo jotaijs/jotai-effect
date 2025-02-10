@@ -212,10 +212,14 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
     storeHooks.m.add(effectAtom, function atomOnMount() {
       // mounted
       atomEffectChannel.add(runEffect)
+      if (runCleanup) {
+        atomEffectChannel.delete(runCleanup)
+      }
     })
 
     storeHooks.u.add(effectAtom, function atomOnUnmount() {
       // unmounted
+      atomEffectChannel.delete(runEffect)
       if (runCleanup) {
         atomEffectChannel.add(runCleanup)
       }
