@@ -5,6 +5,10 @@ import {
   INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
 } from 'jotai/vanilla/internals'
 
+//
+// Debug Store
+//
+
 type Store = ReturnType<typeof INTERNAL_buildStore>
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] }
@@ -30,56 +34,9 @@ export function createDebugStore(): DebugStore {
   return debugStore
 }
 
-export function increment(count: number) {
-  return count + 1
-}
-
-export function incrementLetter(str: string) {
-  return String.fromCharCode(increment(str.charCodeAt(0)))
-}
-
-export function delay(ms: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-export function assert(value: boolean, message?: string): asserts value {
-  if (!value) {
-    throw new Error(message ?? 'assertion failed')
-  }
-}
-
-export function waitFor(
-  condition: () => boolean,
-  options?: { interval?: number; timeout?: number }
-): Promise<void>
-export function waitFor(
-  condition: () => void,
-  options?: { interval?: number; timeout?: number }
-): Promise<void>
-export function waitFor(
-  condition: () => boolean | void,
-  { interval = 10, timeout = 1000 } = {}
-) {
-  return new Promise<void>((resolve, reject) => {
-    const intervalId = setInterval(() => {
-      try {
-        if (condition() !== false) {
-          clearInterval(intervalId)
-          clearTimeout(timeoutId)
-          resolve()
-        }
-      } catch {
-        // ignore
-      }
-    }, interval)
-    const timeoutId = setTimeout(() => {
-      clearInterval(intervalId)
-      reject(new Error('timeout'))
-    }, timeout)
-  })
-}
+//
+// Error Boundary
+//
 
 type ErrorBoundaryState = {
   hasError: boolean
@@ -112,6 +69,10 @@ export class ErrorBoundary extends Component<
   }
 }
 
+//
+// Deferred
+//
+
 export type DeferredPromise<T = void> = Promise<T> & {
   resolve: (value: T) => void
   reject: (reason?: any) => void
@@ -120,10 +81,12 @@ export type DeferredPromise<T = void> = Promise<T> & {
 export function createDeferred<T = void>(
   ...[onfulfilled, onrejected]: Parameters<Promise<T>['then']>
 ): DeferredPromise<T> {
-  let resolve: DeferredPromise<T>['resolve']
-  let reject: DeferredPromise<T>['reject']
-  const promise = new Promise<T>(
-    (res, rej) => ([resolve, reject] = [res, rej])
+  const resolveReject = {} as DeferredPromise<T>
+  const promise = new Promise<T>((res, rej) =>
+    Object.assign(resolveReject, {
+      resolve: (value: T) => res(value) ?? promise,
+      reject: (message: any) => rej(message) ?? promise,
+    })
   ).then(onfulfilled, onrejected) as DeferredPromise<T>
-  return Object.assign(promise, { resolve: resolve!, reject: reject! })
+  return Object.assign(promise, resolveReject)
 }

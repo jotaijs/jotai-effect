@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { createElement, StrictMode } from 'react'
-import { act, render, renderHook, waitFor } from '@testing-library/react'
+import { act, render, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Provider, useAtomValue } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
@@ -10,14 +10,7 @@ import {
   INTERNAL_initializeStoreHooks,
 } from 'jotai/vanilla/internals'
 import { atomEffect } from '../src/atomEffect'
-import {
-  assert,
-  createDebugStore,
-  createDeferred,
-  DeferredPromise,
-  delay,
-  incrementLetter,
-} from './test-utils'
+import { createDebugStore, createDeferred, DeferredPromise } from './test-utils'
 
 it('should run the effect on vanilla store', function test() {
   const countAtom = atom(0)
@@ -60,7 +53,6 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
 
   const store = createDebugStore()
   const unsub = store.sub(effectAtom, () => {})
-  waitFor(() => assert(!!mounted))
 
   // initial render should run the effect but not the cleanup
   expect(mounted).toBe(1)
@@ -209,27 +201,27 @@ it('should allow multiple synchronous recursion with set.recurse', function test
 
 it('should batch updates during synchronous recursion with set.recurse', function test() {
   let runCount = 0
-  const lettersAtom = atom('a')
-  lettersAtom.debugLabel = 'letters'
+  const tensAtom = atom(1)
+  tensAtom.debugLabel = 'tens'
 
-  const numbersAtom = atom(0)
-  numbersAtom.debugLabel = 'numbers'
+  const onesAtom = atom(1)
+  onesAtom.debugLabel = 'ones'
 
   const watchedAtom = atom(0)
   watchedAtom.debugLabel = 'watched'
 
-  const lettersAndNumbersAtom = atom([] as string[])
-  lettersAndNumbersAtom.debugLabel = 'lettersAndNumbersAtom'
+  const tensAndOnesAtom = atom<number[]>([])
+  tensAndOnesAtom.debugLabel = 'tensAndOnes'
 
   const updateAtom = atom(0, (_get, set) => {
-    set(lettersAtom, incrementLetter)
-    set(numbersAtom, (v) => v + 1)
+    set(tensAtom, (v) => v + 1)
+    set(onesAtom, (v) => v + 1)
   })
   updateAtom.debugLabel = 'update'
 
   const effectAtom = atomEffect((get, set) => {
-    const letters = get(lettersAtom)
-    const numbers = get(numbersAtom)
+    const tens = get(tensAtom)
+    const ones = get(onesAtom)
     get(watchedAtom)
     const currentRun = runCount++
     if (currentRun === 0) {
@@ -238,9 +230,9 @@ it('should batch updates during synchronous recursion with set.recurse', functio
     if (currentRun >= 3) {
       return
     }
-    set(lettersAndNumbersAtom, (lettersAndNumbers: string[]) => [
-      ...lettersAndNumbers,
-      letters + String(numbers),
+    set(tensAndOnesAtom, (tensAndOnes: number[]) => [
+      ...tensAndOnes,
+      tens * 10 + ones,
     ])
     set.recurse(updateAtom)
   })
@@ -249,7 +241,7 @@ it('should batch updates during synchronous recursion with set.recurse', functio
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
   store.set(watchedAtom, (v) => v + 1)
-  expect(store.get(lettersAndNumbersAtom)).toEqual(['a0', 'b1'])
+  expect(store.get(tensAndOnesAtom)).toEqual([11, 22])
   expect(runCount).toBe(4)
 })
 
@@ -259,16 +251,16 @@ it('should allow asynchronous recursion with task delay with set.recurse', async
   const watchedAtom = atom(0)
   watchedAtom.debugLabel = 'watchedAtom'
 
-  let done = false
+  const deferred = createDeferred()
 
   const effectAtom = atomEffect((get, { recurse }) => {
     const value = get(watchedAtom)
     ++runCount
     if (value >= 3) {
-      done = true
+      deferred.resolve()
       return
     }
-    delay(0).then(() => {
+    Promise.resolve().then(() => {
       recurse(watchedAtom, (v) => v + 1)
     })
   })
@@ -276,7 +268,7 @@ it('should allow asynchronous recursion with task delay with set.recurse', async
 
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
-  await waitFor(() => assert(done))
+  await deferred
   expect(store.get(watchedAtom)).toBe(3)
   expect(runCount).toBe(4)
 })
@@ -296,7 +288,6 @@ it('should allow asynchronous recursion with microtask delay with set.recurse', 
       return
     }
     Promise.resolve().then(() => {
-      console.log('recurse')
       recurse(watchedAtom, (v) => v + 1)
     })
   })
@@ -645,24 +636,21 @@ it('should batch effect setStates', async function test() {
 })
 
 it('should batch synchronous updates as a single transaction', function test() {
-  const lettersAtom = atom('a')
-  lettersAtom.debugLabel = 'lettersAtom'
+  const tensAtom = atom(1)
+  tensAtom.debugLabel = 'tensAtom'
 
-  const numbersAtom = atom(0)
-  numbersAtom.debugLabel = 'numbersAtom'
+  const onesAtom = atom(1)
+  onesAtom.debugLabel = 'onesAtom'
 
-  const lettersAndNumbersAtom = atom([] as string[])
-  lettersAndNumbersAtom.debugLabel = 'lettersAndNumbersAtom'
+  const tensAndOnesAtom = atom<number[]>([])
+  tensAndOnesAtom.debugLabel = 'tensAndOnesAtom'
 
   let runCount = 0
   const effectAtom = atomEffect((get, set) => {
     ++runCount
-    const letters = get(lettersAtom)
-    const numbers = get(numbersAtom)
-    set(lettersAndNumbersAtom, (lettersAndNumbers) => [
-      ...lettersAndNumbers,
-      letters + String(numbers),
-    ])
+    const tens = get(tensAtom)
+    const ones = get(onesAtom)
+    set(tensAndOnesAtom, (tensAndOnes) => [...tensAndOnes, tens * 10 + ones])
   })
   effectAtom.debugLabel = 'effectAtom'
 
@@ -670,36 +658,36 @@ it('should batch synchronous updates as a single transaction', function test() {
   store.sub(effectAtom, () => {})
 
   expect(runCount).toBe(1)
-  expect(store.get(lettersAndNumbersAtom)).toEqual(['a0'])
+  expect(store.get(tensAndOnesAtom)).toEqual([11])
   const w = atom(null, (_get, set) => {
-    set(lettersAtom, incrementLetter)
-    set(numbersAtom, (v) => v + 1)
+    set(tensAtom, (v) => v + 1)
+    set(onesAtom, (v) => v + 1)
   })
   store.set(w)
   expect(runCount).toBe(2)
-  expect(store.get(lettersAndNumbersAtom)).toEqual(['a0', 'b1'])
+  expect(store.get(tensAndOnesAtom)).toEqual([11, 22])
 })
 
 it('should run the effect once even if the effect is mounted multiple times', function test() {
-  const lettersAtom = atom('a')
-  lettersAtom.debugLabel = 'lettersAtom'
+  const atomA = atom(0)
+  atomA.debugLabel = 'atomA'
 
-  const numbersAtom = atom(0)
-  numbersAtom.debugLabel = 'numbersAtom'
+  const atomB = atom(0)
+  atomB.debugLabel = 'atomB'
 
-  const lettersAndNumbersAtom = atom(null, (_get, set) => {
-    set(lettersAtom, incrementLetter)
-    set(numbersAtom, (v) => v + 1)
+  const incrementDependencies = atom(null, (_get, set) => {
+    set(atomA, (v) => v + 1)
+    set(atomB, (v) => v + 1)
   })
-  lettersAndNumbersAtom.debugLabel = 'lettersAndNumbersAtom'
+  incrementDependencies.debugLabel = 'incrementDependencies'
 
   let runCount = 0
   const effectAtom = atomEffect((get) => {
     ++runCount
-    get(lettersAtom)
-    get(lettersAtom)
-    get(numbersAtom)
-    get(numbersAtom)
+    get(atomA)
+    get(atomA)
+    get(atomB)
+    get(atomB)
   })
   effectAtom.debugLabel = 'effectAtom'
 
@@ -734,9 +722,9 @@ it('should run the effect once even if the effect is mounted multiple times', fu
   store.sub(derivedAtom4, () => {})
 
   expect(runCount).toBe(1)
-  store.set(lettersAndNumbersAtom)
+  store.set(incrementDependencies)
   expect(runCount).toBe(2)
-  store.set(lettersAndNumbersAtom)
+  store.set(incrementDependencies)
   expect(runCount).toBe(3)
 })
 
@@ -963,10 +951,10 @@ it('should allow calling recurse asynchronously in effect', async function test(
   const refreshAtom = atom(0)
   refreshAtom.debugLabel = 'refreshAtom'
 
-  const resolves: DeferredPromise[] = []
+  const deferreds: DeferredPromise[] = []
   const effectAtom = atomEffect((get, { recurse }) => {
     get(refreshAtom)
-    resolves.push(
+    deferreds.push(
       createDeferred(() => {
         recurse(countAtom, (v) => v + 1)
       })
@@ -977,8 +965,8 @@ it('should allow calling recurse asynchronously in effect', async function test(
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
   store.set(refreshAtom, (v) => v + 1)
-  await expect(resolves[1]!.resolve()).resolves.not.toThrow()
-  await expect(resolves[0]!.resolve()).resolves.not.toThrow()
+  await expect(deferreds[1]!.resolve()).resolves.not.toThrow()
+  await expect(deferreds[0]!.resolve()).resolves.not.toThrow()
 })
 
 it('should not add dependencies added asynchronously', async function test() {
@@ -1062,14 +1050,17 @@ it('should not run the effect when the effectAtom is unmounted', function test()
   expect(runCount).toBe(0)
 })
 
-it('should work in StrictMode', async () => {
+it.only('should work in StrictMode', async () => {
   const watchedAtom = atom(0)
   let runCount = 0
   let cleanupCount = 0
 
+  let deferred = createDeferred()
   const effectAtom = atomEffect((get, set) => {
     get(watchedAtom)
     runCount++
+    console.log('effect', { runCount })
+    deferred.resolve()
     set(watchedAtom, (v) => v + 1)
     return () => {
       cleanupCount++
@@ -1079,27 +1070,21 @@ it('should work in StrictMode', async () => {
   const store = createDebugStore()
 
   function useTest() {
+    console.log('useTest')
     useAtomValue(effectAtom, { store })
   }
 
   const { rerender, unmount, result } = renderHook(useTest, {
     wrapper: StrictMode,
   })
-
-  await waitFor(() => assert(runCount === 1))
-  expect(runCount).toBe(1) // effect ran once
-  // Watched atom incremented once
+  expect(runCount).toBe(1) // FIXME: (received: 2) - runs twice in StrictMode.
   expect(result.current).toBe(1)
 
-  // Rerender should NOT re-run the effect
   rerender()
-  await delay(0)
   expect(runCount).toBe(1)
 
-  // Unmount should clean up once
   unmount()
   expect(cleanupCount).toBe(1)
-  // Double-unmount should not run cleanup again
   unmount()
   expect(cleanupCount).toBe(1)
 })

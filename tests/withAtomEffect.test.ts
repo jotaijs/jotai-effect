@@ -1,10 +1,9 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useAtomValue } from 'jotai/react'
 import { atom, createStore } from 'jotai/vanilla'
 import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
-import { delay } from './test-utils'
 
 describe('withAtomEffect', () => {
   it('ensures readonly atoms remain readonly', () => {
@@ -184,18 +183,18 @@ describe('withAtomEffect', () => {
       useAtomValue(enhancedAtom2, { store })
     }
     const { unmount } = renderHook(Test)
-    await waitFor(() => expect(effectMock1).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(effectMock2).toHaveBeenCalledTimes(1))
+    expect(effectMock1).toHaveBeenCalledTimes(1)
+    expect(effectMock2).toHaveBeenCalledTimes(1)
     expect(cleanupMock1).toHaveBeenCalledTimes(0)
     expect(cleanupMock2).toHaveBeenCalledTimes(0)
     act(() => store.set(baseAtom, 1))
-    await waitFor(() => expect(effectMock1).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(effectMock2).toHaveBeenCalledTimes(2))
+    expect(effectMock1).toHaveBeenCalledTimes(2)
+    expect(effectMock2).toHaveBeenCalledTimes(2)
     expect(cleanupMock1).toHaveBeenCalledTimes(1)
     expect(cleanupMock2).toHaveBeenCalledTimes(1)
     act(unmount)
-    await waitFor(() => expect(cleanupMock1).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(cleanupMock2).toHaveBeenCalledTimes(2))
+    expect(cleanupMock1).toHaveBeenCalledTimes(2)
+    expect(cleanupMock2).toHaveBeenCalledTimes(2)
   })
 
   it('calculates price and discount', async () => {
@@ -274,22 +273,18 @@ describe('withAtomEffect', () => {
 
     const store = createStore()
     store.sub(priceAndDiscount, () => void 0)
-    await delay(0)
     expect(store.get(priceAtom)).toBe(100) // value
     expect(store.get(discountAtom)).toBe(0) // (100-100)/100*100 = 0)
 
     store.set(discountAtom, 20)
-    await delay(0)
     expect(store.get(priceAtom)).toBe(80) // 100*(1-20/100) = 80)
     expect(store.get(discountAtom)).toBe(20) // value
 
     store.set(priceAtom, 50)
-    await delay(0)
     expect(store.get(priceAtom)).toBe(50) // value
     expect(store.get(discountAtom)).toBe(50) // (100-50)/100*100 = 50)
 
     store.set(unitPriceAtom, 200)
-    await delay(0)
     expect(store.get(priceAtom)).toBe(100) // 200*(1-50/100) = 100)
     expect(store.get(discountAtom)).toBe(50) // (200-100)/200*100 = 50)
   })
