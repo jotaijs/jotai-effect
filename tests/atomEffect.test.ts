@@ -428,7 +428,7 @@ it('should conditionally run the effect and cleanup when effectAtom is unmounted
   expect(cleanupRunCount).toBe(1)
 })
 
-describe('synchronous updates to the same atom', () => {
+describe('synchronous updates to the same atom', function describeTest() {
   let effectIncrementCountBy = 0
   let incrementCountBy = 0
   let runCount = 0
@@ -1050,17 +1050,15 @@ it('should not run the effect when the effectAtom is unmounted', function test()
   expect(runCount).toBe(0)
 })
 
-it.only('should work in StrictMode', async () => {
+it('should work in StrictMode', function test() {
   const watchedAtom = atom(0)
   let runCount = 0
   let cleanupCount = 0
 
-  let deferred = createDeferred()
   const effectAtom = atomEffect((get, set) => {
     get(watchedAtom)
     runCount++
     console.log('effect', { runCount })
-    deferred.resolve()
     set(watchedAtom, (v) => v + 1)
     return () => {
       cleanupCount++
