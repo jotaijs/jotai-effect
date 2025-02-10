@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
-import { createElement, StrictMode } from 'react'
+import { StrictMode, createElement } from 'react'
 import { act, render, renderHook } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
 import { Provider, useAtomValue } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
 import {
@@ -9,8 +8,9 @@ import {
   INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
   INTERNAL_initializeStoreHooks,
 } from 'jotai/vanilla/internals'
+import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
-import { createDebugStore, createDeferred, DeferredPromise } from './test-utils'
+import { DeferredPromise, createDebugStore, createDeferred } from './test-utils'
 
 it('should run the effect on vanilla store', function test() {
   const countAtom = atom(0)
@@ -927,7 +927,6 @@ it('should not suspend the component', function test() {
   let didSuspend = false
   function App() {
     try {
-      // eslint-disable-next-line react-compiler/react-compiler
       useAtomValue(watchCounterEffect)
     } catch (error) {
       didSuspend = didSuspend || error instanceof Promise
@@ -1058,7 +1057,6 @@ it('should work in StrictMode', function test() {
   const effectAtom = atomEffect((get, set) => {
     get(watchedAtom)
     runCount++
-    console.log('effect', { runCount })
     set(watchedAtom, (v) => v + 1)
     return () => {
       cleanupCount++
@@ -1068,7 +1066,6 @@ it('should work in StrictMode', function test() {
   const store = createDebugStore()
 
   function useTest() {
-    console.log('useTest')
     useAtomValue(effectAtom, { store })
   }
 
