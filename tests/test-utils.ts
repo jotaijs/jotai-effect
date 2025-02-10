@@ -1,4 +1,34 @@
 import { Component, type ErrorInfo, type ReactNode, createElement } from 'react'
+import { createStore } from 'jotai/vanilla'
+import {
+  INTERNAL_buildStoreRev1 as INTERNAL_buildStore,
+  INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
+} from 'jotai/vanilla/internals'
+
+type Store = ReturnType<typeof INTERNAL_buildStore>
+
+type Mutable<T> = { -readonly [P in keyof T]: T[P] }
+
+type BuildingBlocks = Mutable<Parameters<typeof INTERNAL_buildStore>>
+
+type DebugStore = Store & {
+  ensureAtomState: NonNullable<BuildingBlocks[11]>
+  name: string
+}
+
+let storeId = 0
+export function createDebugStore(): DebugStore {
+  const buildingBlocks = INTERNAL_getBuildingBlocks(
+    createStore()
+  ) as unknown as BuildingBlocks
+  const ensureAtomState = buildingBlocks[11]!
+  buildingBlocks[11] = (atom) =>
+    Object.assign(ensureAtomState(atom), { label: atom.debugLabel })
+  const debugStore = INTERNAL_buildStore(...buildingBlocks) as DebugStore
+  const name = `debug${storeId++}`
+  Object.assign(debugStore, { ensureAtomState, name })
+  return debugStore
+}
 
 export function increment(count: number) {
   return count + 1
@@ -54,10 +84,12 @@ export function waitFor(
 type ErrorBoundaryState = {
   hasError: boolean
 }
+
 type ErrorBoundaryProps = {
   componentDidCatch?: (error: Error, errorInfo: ErrorInfo) => void
   children: ReactNode
 }
+
 export class ErrorBoundary extends Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
