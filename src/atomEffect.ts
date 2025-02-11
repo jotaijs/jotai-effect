@@ -45,13 +45,20 @@ export type Effect = (
   set: SetterWithRecurse
 ) => void | Cleanup
 
-type Ref = [dependencies?: Set<AnyAtom>, atomState?: AtomState<void>]
+type Ref = [
+  dependencies?: Set<AnyAtom>,
+  atomState?: AtomState<void>,
+  mountedAtoms?: Map<AnyAtom, AtomState<void>>,
+]
 
 export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
   const refAtom = atom<Ref>(() => [])
 
   const effectAtom = atom(function effectAtomRead(get) {
-    const [dependencies, atomState] = get(refAtom)
+    const [dependencies, atomState, mountedAtoms] = get(refAtom)
+    if (!mountedAtoms!.has(effectAtom)) {
+      return
+    }
     dependencies!.forEach(get)
     ++atomState!.n
   }) as Atom<void> & { effect: Effect }
@@ -67,11 +74,11 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
     let runCleanup: (() => void) | undefined
 
     function runEffect() {
-      if (!mountedAtoms.has(effectAtom) || inProgress || isRecursing) {
+      if (inProgress) {
         return
       }
-      let isSync = true
       deps.clear()
+      let isSync = true
 
       const getter: GetterWithPeek = (a) => {
         if (fromCleanup) {
@@ -187,6 +194,9 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
         }
       } finally {
         isSync = false
+        deps.forEach((depAtom) => {
+          atomState.d.set(depAtom, ensureAtomState(depAtom).n)
+        })
         mountDependencies(effectAtom)
         recomputeInvalidatedAtoms()
       }
@@ -204,10 +214,12 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
       recomputeInvalidatedAtoms,
       flushCallbacks,
     ] = getBuildingBlocks(store)
-    const atomEffectChannel = ensureatomEffectChannel(store)
+    const atomEffectChannel = ensureAtomEffectChannel(store)
     const atomState = ensureAtomState(effectAtom)
+    // initialize atomState
+    atomState.v = undefined
 
-    Object.assign(store.get(refAtom), [deps, atomState])
+    Object.assign(store.get(refAtom), [deps, atomState, mountedAtoms])
 
     storeHooks.m.add(effectAtom, function atomOnMount() {
       // mounted
@@ -248,7 +260,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
 
 const atomEffectChannelStoreMap = new WeakMap<Store, Set<() => void>>()
 
-function ensureatomEffectChannel(store: unknown) {
+function ensureAtomEffectChannel(store: unknown) {
   const storeHooks = getBuildingBlocks(store as Store)[2]
   let atomEffectChannel = atomEffectChannelStoreMap.get(store as Store)
   if (!atomEffectChannel) {

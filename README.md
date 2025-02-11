@@ -277,7 +277,7 @@ const valuesAtom = withAtomEffect(atom(null), (get, set) => {
   console.log(i) // 1
   ```
 
-    </details>
+  </details>
 
 - **Conditionally Running Effects:**
   `atomEffect` only runs when mounted.

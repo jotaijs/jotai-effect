@@ -85,6 +85,13 @@ it('should run the effect on mount and cleanup on unmount and whenever countAtom
   expect(mounted).toBe(0)
   expect(runCount).toBe(3)
   expect(cleanupCount).toBe(3)
+
+  store.set(countAtom, (v) => v + 1)
+
+  // changing the value should not run the effect again
+  expect(mounted).toBe(0)
+  expect(runCount).toBe(3)
+  expect(cleanupCount).toBe(3)
 })
 
 it('should not cause infinite loops when effect updates the watched atom', function test() {
@@ -108,23 +115,25 @@ it('should not cause infinite loops when effect updates the watched atom', funct
   expect(runCount).toBe(2)
 })
 
-it('should not cause infinite loops when effect updates the watched atom asynchronous', function test() {
+it('should not cause infinite loops when effect updates the watched atom asynchronous', async function test() {
   const watchedAtom = atom(0)
   watchedAtom.debugLabel = 'watchedAtom'
 
   let runCount = 0
+  let deferred: DeferredPromise
   const effectAtom = atomEffect((get, set) => {
     get(watchedAtom)
     ++runCount
-    setTimeout(() => {
+    deferred = createDeferred(() => {
       set(watchedAtom, (v) => v + 1)
-    }, 0)
+    })
   })
   effectAtom.debugLabel = 'effect'
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
   // changing the value should run the effect again one time
   store.set(watchedAtom, (v) => v + 1)
+  await deferred!.resolve()
   expect(runCount).toBe(2)
 })
 
@@ -245,57 +254,36 @@ it('should batch updates during synchronous recursion with set.recurse', functio
   expect(runCount).toBe(4)
 })
 
-it('should allow asynchronous recursion with task delay with set.recurse', async function test() {
+it('should allow asynchronous recursion with asynchronous set.recurse', async function test() {
   let runCount = 0
 
   const watchedAtom = atom(0)
   watchedAtom.debugLabel = 'watchedAtom'
 
-  const deferred = createDeferred()
+  const exitDeferred = createDeferred()
+  const deferreds: DeferredPromise[] = []
 
   const effectAtom = atomEffect((get, { recurse }) => {
     const value = get(watchedAtom)
     ++runCount
     if (value >= 3) {
-      deferred.resolve()
+      exitDeferred.resolve()
       return
     }
-    Promise.resolve().then(() => {
-      recurse(watchedAtom, (v) => v + 1)
-    })
+    deferreds.push(
+      createDeferred(() => {
+        recurse(watchedAtom, (v) => v + 1)
+      })
+    )
   })
   effectAtom.debugLabel = 'effect'
 
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
-  await deferred
-  expect(store.get(watchedAtom)).toBe(3)
-  expect(runCount).toBe(4)
-})
-
-it('should allow asynchronous recursion with microtask delay with set.recurse', async function test() {
-  let runCount = 0
-
-  const watchedAtom = atom(0)
-  watchedAtom.debugLabel = 'watchedAtom'
-
-  const deferred = createDeferred()
-  const effectAtom = atomEffect((get, { recurse }) => {
-    const value = get(watchedAtom)
-    ++runCount
-    if (value >= 3) {
-      deferred.resolve()
-      return
-    }
-    Promise.resolve().then(() => {
-      recurse(watchedAtom, (v) => v + 1)
-    })
-  })
-  effectAtom.debugLabel = 'effect'
-
-  const store = createDebugStore()
-  store.sub(effectAtom, () => {})
-  await deferred
+  while (deferreds.length) {
+    await deferreds.shift()!.resolve()
+  }
+  await exitDeferred
   expect(store.get(watchedAtom)).toBe(3)
   expect(runCount).toBe(4)
 })
@@ -360,8 +348,6 @@ it('should disallow synchronous set.recurse in cleanup', function test() {
   }
   expect(error?.message).toBe('set.recurse is not allowed in cleanup')
 })
-
-// FIXME: is there a way to disallow asynchronous infinite loops in cleanup?
 
 it('should return value from set.recurse', function test() {
   const countAtom = atom(0)
@@ -1049,34 +1035,36 @@ it('should not run the effect when the effectAtom is unmounted', function test()
   expect(runCount).toBe(0)
 })
 
-it('should work in StrictMode', function test() {
-  const watchedAtom = atom(0)
-  let runCount = 0
-  let cleanupCount = 0
+it('should cause change hooks to fire once when effect updates the watched atom', function test() {
+  const countAtom = atom(0)
+  countAtom.debugLabel = 'watchedAtom'
 
+  const refreshAtom = atom(0)
+  refreshAtom.debugLabel = 'refreshAtom'
+
+  let runCount = 0
   const effectAtom = atomEffect((get, set) => {
-    get(watchedAtom)
-    runCount++
-    set(watchedAtom, (v) => v + 1)
-    return () => {
-      cleanupCount++
-    }
+    ++runCount
+    get(refreshAtom)
+    get(countAtom)
+    set(countAtom, (v) => v + 1)
   })
+  effectAtom.debugLabel = 'effect'
 
   const store = createDebugStore()
-
-  function useTest() {
-    useAtomValue(effectAtom, { store })
-  }
-
-  const { rerender, unmount } = renderHook(useTest, {
-    wrapper: StrictMode,
-  })
-  expect(runCount).toBe(2) // runs twice in StrictMode
-  rerender()
-  expect(runCount).toBe(2)
-  unmount()
-  expect(cleanupCount).toBe(2)
-  unmount()
-  expect(cleanupCount).toBe(2)
+  const buildingBlocks = INTERNAL_getBuildingBlocks(store)
+  const storeHooks = INTERNAL_initializeStoreHooks(buildingBlocks[6])
+  const countChanged = vi.fn()
+  storeHooks.c.add(countAtom, countChanged)
+  const effectChanged = vi.fn()
+  storeHooks.c.add(effectAtom, effectChanged)
+  store.sub(countAtom, () => {})
+  store.sub(effectAtom, () => {})
+  expect(runCount).toBe(1)
+  expect(countChanged).toHaveBeenCalledTimes(1)
+  expect(effectChanged).toHaveBeenCalledTimes(0)
+  vi.clearAllMocks()
+  store.set(refreshAtom, (v) => v + 1)
+  expect(countChanged).toHaveBeenCalledTimes(1)
+  expect(effectChanged).toHaveBeenCalledTimes(1)
 })
