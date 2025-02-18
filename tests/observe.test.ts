@@ -1,7 +1,6 @@
-import { Getter, atom, createStore, getDefaultStore } from 'jotai/vanilla'
+import { type Getter, atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { describe, expect, it } from 'vitest'
 import { observe } from '../src/observe'
-import { delay, increment } from './test-utils'
 
 describe('observe', () => {
   it('should run effect on subscription and cleanup on unsubscribe', async () => {
@@ -16,7 +15,6 @@ describe('observe', () => {
       }
     })
 
-    await delay(0)
     expect(mounted).toBe(1)
     unsubscribe()
     expect(mounted).toBe(0)
@@ -35,16 +33,13 @@ describe('observe', () => {
     const unsubscribe1 = observe(effect, store)
     const unsubscribe2 = observe(effect, store)
 
-    await delay(0)
     expect(runCount).toBe(1)
 
-    store.set(countAtom, increment)
-    await delay(0)
+    store.set(countAtom, (v) => v + 1)
     expect(runCount).toBe(2)
     unsubscribe1()
     unsubscribe2()
-    store.set(countAtom, increment)
-    await delay(0)
+    store.set(countAtom, (v) => v + 1)
     expect(runCount).toBe(2)
   })
 
@@ -61,20 +56,16 @@ describe('observe', () => {
     const unsubscribe1 = observe(effect, store)
     const unsubscribe2 = observe(effect, store)
 
-    await delay(0)
     expect(runCount).toBe(1)
 
-    store.set(countAtom, increment)
-    await delay(0)
+    store.set(countAtom, (v) => v + 1)
     expect(runCount).toBe(2)
     unsubscribe1()
-    store.set(countAtom, increment)
-    await delay(0)
+    store.set(countAtom, (v) => v + 1)
     expect(runCount).toBe(2)
     unsubscribe2()
     expect(runCount).toBe(2)
-    store.set(countAtom, increment)
-    await delay(0)
+    store.set(countAtom, (v) => v + 1)
     expect(runCount).toBe(2)
   })
 
@@ -88,11 +79,9 @@ describe('observe', () => {
       get(countAtom)
     }, store)
 
-    await delay(0)
     expect(runCount).toBe(1)
 
-    store.set(countAtom, increment)
-    await delay(0)
+    store.set(countAtom, (v) => v + 1)
     expect(runCount).toBe(2)
 
     unsubscribe()
@@ -116,26 +105,21 @@ describe('observe', () => {
     const unsubscribe1 = observe(effect, store1)
     const unsubscribe2 = observe(effect, store2)
 
-    await delay(0)
     expect(runCounts[0]).toBe(1)
     expect(runCounts[1]).toBe(1)
 
-    store1.set(countAtom, increment)
-    await delay(0)
+    store1.set(countAtom, (v) => v + 1)
     expect(runCounts[0]).toBe(2)
     expect(runCounts[1]).toBe(1)
-    store2.set(countAtom, increment)
-    await delay(0)
+    store2.set(countAtom, (v) => v + 1)
     expect(runCounts[0]).toBe(2)
     expect(runCounts[1]).toBe(2)
 
     unsubscribe1()
-    store2.set(countAtom, increment)
-    await delay(0)
+    store2.set(countAtom, (v) => v + 1)
     expect(runCounts[0]).toBe(2)
     expect(runCounts[1]).toBe(3)
-    store2.set(countAtom, increment)
-    await delay(0)
+    store2.set(countAtom, (v) => v + 1)
     expect(runCounts[0]).toBe(2)
     expect(runCounts[1]).toBe(4)
 
@@ -159,18 +143,15 @@ describe('observe', () => {
     const unsubscribe1 = observe(effect1, store)
     const unsubscribe2 = observe(effect2, store)
 
-    await delay(0)
     expect(runCounts[0]).toBe(1)
     expect(runCounts[1]).toBe(1)
 
-    store.set(countAtom, increment)
-    await delay(0)
+    store.set(countAtom, (v) => v + 1)
     expect(runCounts[0]).toBe(2)
     expect(runCounts[1]).toBe(2)
 
     unsubscribe1()
-    store.set(countAtom, increment)
-    await delay(0)
+    store.set(countAtom, (v) => v + 1)
     expect(runCounts[0]).toBe(2)
     expect(runCounts[1]).toBe(3)
 
