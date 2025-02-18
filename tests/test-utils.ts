@@ -13,7 +13,7 @@ type Store = ReturnType<typeof INTERNAL_buildStore>
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] }
 
-type BuildingBlocks = Mutable<Parameters<typeof INTERNAL_buildStore>>
+type BuildingBlocks = Mutable<ReturnType<typeof INTERNAL_getBuildingBlocks>>
 
 type DebugStore = Store & {
   ensureAtomState: NonNullable<BuildingBlocks[11]>
@@ -24,7 +24,7 @@ let storeId = 0
 export function createDebugStore(): DebugStore {
   const buildingBlocks = INTERNAL_getBuildingBlocks(
     createStore()
-  ) as unknown as BuildingBlocks
+  ) as BuildingBlocks
   const ensureAtomState = buildingBlocks[11]!
   buildingBlocks[11] = (atom) =>
     Object.assign(ensureAtomState(atom), { label: atom.debugLabel })
@@ -87,6 +87,6 @@ export function createDeferred<T = void>(
       resolve: (value: T) => res(value) ?? promise,
       reject: (message: any) => rej(message) ?? promise,
     })
-  ).then(onfulfilled, onrejected) as DeferredPromise<T>
+  ).then(onfulfilled, onrejected)
   return Object.assign(promise, resolveReject)
 }

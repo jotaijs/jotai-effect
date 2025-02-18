@@ -359,7 +359,7 @@ it('should return value from set.recurse', function test() {
   })
   incrementCountAtom.debugLabel = 'incrementCountAtom'
 
-  const results = [] as number[]
+  const results: number[] = []
   const effectAtom = atomEffect((get, { recurse }) => {
     const value = get(countAtom)
     if (value < 5) {
