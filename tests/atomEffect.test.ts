@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { StrictMode, createElement } from 'react'
-import { act, render, renderHook } from '@testing-library/react'
+import { createElement } from 'react'
+import { act, render } from '@testing-library/react'
 import { Provider, useAtomValue } from 'jotai/react'
 import { atom } from 'jotai/vanilla'
 import {
