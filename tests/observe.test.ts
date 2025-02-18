@@ -91,7 +91,7 @@ describe('observe', () => {
     const store1 = createStore()
     const store2 = createStore()
     const countAtom = atom(0)
-    const runCounts = [0, 0] as [number, number]
+    const runCounts: [number, number] = [0, 0]
 
     const storeIdAtom = atom(NaN as 0 | 1)
     store1.set(storeIdAtom, 0)
@@ -129,7 +129,7 @@ describe('observe', () => {
   it('should handle multiple effects independently', async () => {
     const store = createStore()
     const countAtom = atom(0)
-    const runCounts = [0, 0] as [number, number]
+    const runCounts: [number, number] = [0, 0]
 
     function effect1(get: Getter) {
       ++runCounts[0]

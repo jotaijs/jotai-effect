@@ -13,6 +13,7 @@ import {
   INTERNAL_returnAtomValue as returnAtomValue,
   INTERNAL_setAtomStateValueOrPromise as setAtomStateValueOrPromise,
 } from 'jotai/vanilla/internals'
+import { isDev } from './env'
 
 const getBuildingBlocks = (store: Store) => {
   const buildingBlocks = INTERNAL_getBuildingBlocks(store)
@@ -138,7 +139,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
               storeHooks.c?.(a)
               invalidateDependents(a)
             }
-            return undefined as unknown as R
+            return undefined as R
           } else {
             return writeAtomState(a, ...args)
           }
@@ -153,7 +154,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
 
       setter.recurse = (a, ...args) => {
         if (fromCleanup) {
-          if (process.env?.MODE !== 'production') {
+          if (isDev()) {
             throw new Error('set.recurse is not allowed in cleanup')
           }
           return undefined as any
@@ -241,13 +242,13 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
       // changed
       if (isRecursing) {
         hasChanged = true
-        return
+      } else {
+        atomEffectChannel.add(runEffect)
       }
-      atomEffectChannel.add(runEffect)
     })
   }
 
-  if (process.env?.MODE !== 'production') {
+  if (isDev()) {
     Object.defineProperty(refAtom, 'debugLabel', {
       get: () =>
         effectAtom.debugLabel ? `${effectAtom.debugLabel}:ref` : undefined,
@@ -258,14 +259,15 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
   return effectAtom
 }
 
-const atomEffectChannelStoreMap = new WeakMap<Store, Set<() => void>>()
+type AtomEffectChannel = Set<() => void>
+const atomEffectChannelStoreMap = new WeakMap<Store, AtomEffectChannel>()
 
-function ensureAtomEffectChannel(store: unknown) {
-  const storeHooks = getBuildingBlocks(store as Store)[2]
-  let atomEffectChannel = atomEffectChannelStoreMap.get(store as Store)
+function ensureAtomEffectChannel(store: Store): AtomEffectChannel {
+  const storeHooks = getBuildingBlocks(store)[2]
+  let atomEffectChannel = atomEffectChannelStoreMap.get(store)
   if (!atomEffectChannel) {
-    atomEffectChannel = new Set<() => void>()
-    atomEffectChannelStoreMap.set(store as Store, atomEffectChannel)
+    atomEffectChannel = new Set()
+    atomEffectChannelStoreMap.set(store, atomEffectChannel)
     const call = (fn: () => void) => fn()
     storeHooks.f.add(function storeOnFlush() {
       // flush

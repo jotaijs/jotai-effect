@@ -1,6 +1,7 @@
 import type { Atom } from 'jotai/vanilla'
 import type { Effect } from './atomEffect'
 import { atomEffect } from './atomEffect'
+import { isDev } from './env'
 
 export function withAtomEffect<T extends Atom<unknown>>(
   targetAtom: T,
@@ -12,7 +13,7 @@ export function withAtomEffect<T extends Atom<unknown>>(
     getter.peek = get.peek
     return targetWithEffect.effect(getter, set)
   })
-  if (process.env.NODE_ENV !== 'production') {
+  if (isDev()) {
     Object.defineProperty(effectAtom, 'debugLabel', {
       get: () => `${targetWithEffect.debugLabel ?? 'atomWithEffect'}:effect`,
     })
