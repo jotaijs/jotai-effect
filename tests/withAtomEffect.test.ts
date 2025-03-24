@@ -253,7 +253,6 @@ describe('withAtomEffect', () => {
       const discount = get(discountAtom)
       if (discount === 20 || discount === 80) {
         const p = getNextPrice(get.peek(unitPriceAtom), discount)
-        console.log(p)
         set(priceAtom, p)
       }
     })
