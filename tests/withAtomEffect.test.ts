@@ -1,15 +1,16 @@
 import { act, renderHook } from '@testing-library/react'
 import { useAtomValue } from 'jotai/react'
-import { atom, createStore } from 'jotai/vanilla'
+import { atom } from 'jotai/vanilla'
 import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
+import { createDebugStore } from './test-utils'
 
 describe('withAtomEffect', () => {
   it('ensures readonly atoms remain readonly', () => {
     const readOnlyAtom = atom(() => 10)
     const enhancedAtom = withAtomEffect(readOnlyAtom, () => {})
-    const store = createStore()
+    const store = createDebugStore()
     store.sub(enhancedAtom, () => {})
     expect(store.get(enhancedAtom)).toBe(10)
     expect(() => {
@@ -21,7 +22,7 @@ describe('withAtomEffect', () => {
   it('ensures writable atoms remain writable', () => {
     const writableAtom = atom(0)
     const enhancedAtom = withAtomEffect(writableAtom, () => {})
-    const store = createStore()
+    const store = createDebugStore()
     store.sub(enhancedAtom, () => {})
     store.set(enhancedAtom, 5)
     expect(store.get(enhancedAtom)).toBe(5)
@@ -36,7 +37,7 @@ describe('withAtomEffect', () => {
       effectMock()
       get(baseAtom)
     })
-    const store = createStore()
+    const store = createDebugStore()
     store.sub(enhancedAtom, () => {})
     await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(1)
@@ -52,7 +53,7 @@ describe('withAtomEffect', () => {
       effectMock()
       get(enhancedAtom)
     })
-    const store = createStore()
+    const store = createDebugStore()
     store.sub(enhancedAtom, () => {})
     await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(1)
@@ -71,7 +72,7 @@ describe('withAtomEffect', () => {
         cleanupMock()
       }
     })
-    const store = createStore()
+    const store = createDebugStore()
     const unsubscribe = store.sub(enhancedAtom, () => {})
     await Promise.resolve()
     expect(mountMock).toHaveBeenCalledTimes(1)
@@ -93,7 +94,7 @@ describe('withAtomEffect', () => {
       get(countWithEffectAtom)
       set(countWithEffectAtom, (v) => v + 1)
     })
-    const store = createStore()
+    const store = createDebugStore()
     store.sub(countWithEffectAtom, () => {})
     await Promise.resolve()
     expect(store.get(countWithEffectAtom)).toBe(1)
@@ -109,7 +110,7 @@ describe('withAtomEffect', () => {
     })
     const enhancedAtom = withAtomEffect(baseAtom, effectA)
     expect(enhancedAtom.effect).toBe(effectA)
-    const store = createStore()
+    const store = createDebugStore()
     store.sub(enhancedAtom, () => {})
     await Promise.resolve()
     effectA.mockClear()
@@ -137,7 +138,7 @@ describe('withAtomEffect', () => {
         cleanupMock()
       }
     })
-    const store = createStore()
+    const store = createDebugStore()
     const unsub = store.sub(enhancedAtom, () => {})
     await Promise.resolve()
     expect(effectMock).toHaveBeenCalledTimes(1)
@@ -177,7 +178,7 @@ describe('withAtomEffect', () => {
       effectMock2()
       return cleanupMock2
     })
-    const store = createStore()
+    const store = createDebugStore()
     function Test() {
       useAtomValue(enhancedAtom1, { store })
       useAtomValue(enhancedAtom2, { store })
@@ -271,7 +272,7 @@ describe('withAtomEffect', () => {
       price: get(priceAtom),
     }))
 
-    const store = createStore()
+    const store = createDebugStore()
     store.sub(priceAndDiscount, () => void 0)
     expect(store.get(priceAtom)).toBe(100) // value
     expect(store.get(discountAtom)).toBe(0) // (100-100)/100*100 = 0)
@@ -287,5 +288,18 @@ describe('withAtomEffect', () => {
     store.set(unitPriceAtom, 200)
     expect(store.get(priceAtom)).toBe(100) // 200*(1-50/100) = 100)
     expect(store.get(discountAtom)).toBe(50) // (200-100)/200*100 = 50)
+  })
+
+  it('should have the latest value from atomA', function test() {
+    const atomA = withAtomEffect(atom(0), function effectA(_, set) {
+      set(atomA, 1)
+    })
+    const atomB = withAtomEffect(atom(0), function effectB(get, set) {
+      const value = get(atomA)
+      set(atomB, value)
+    })
+    const store = createDebugStore()
+    store.sub(atomB, () => {})
+    expect(store.get(atomB)).toBe(1)
   })
 })
