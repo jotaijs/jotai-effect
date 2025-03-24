@@ -1,5 +1,4 @@
 import { Component, type ErrorInfo, type ReactNode, createElement } from 'react'
-import { createStore } from 'jotai/vanilla'
 import {
   INTERNAL_buildStoreRev1 as INTERNAL_buildStore,
   INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
@@ -16,21 +15,40 @@ type Mutable<T> = { -readonly [P in keyof T]: T[P] }
 type BuildingBlocks = Mutable<ReturnType<typeof INTERNAL_getBuildingBlocks>>
 
 type DebugStore = Store & {
-  ensureAtomState: NonNullable<BuildingBlocks[11]>
   name: string
+  state: {
+    atomStateMap: BuildingBlocks[0]
+    mountedMap: BuildingBlocks[1]
+    invalidatedAtoms: BuildingBlocks[2]
+    changedAtoms: BuildingBlocks[3]
+    mountCallbacks: BuildingBlocks[4]
+    unmountCallbacks: BuildingBlocks[5]
+    storeHooks: BuildingBlocks[6]
+  }
 }
 
 let storeId = 0
-export function createDebugStore(): DebugStore {
-  const buildingBlocks = INTERNAL_getBuildingBlocks(
-    createStore()
+export function createDebugStore(
+  name: string = `debug${storeId++}`
+): DebugStore {
+  const foundation = INTERNAL_getBuildingBlocks(
+    INTERNAL_buildStore()
   ) as BuildingBlocks
-  const ensureAtomState = buildingBlocks[11]!
+  const buildingBlocks = foundation.slice(0, 7) as Partial<BuildingBlocks>
+  const ensureAtomState = foundation[11]!
   buildingBlocks[11] = (atom) =>
     Object.assign(ensureAtomState(atom), { label: atom.debugLabel })
   const debugStore = INTERNAL_buildStore(...buildingBlocks) as DebugStore
-  const name = `debug${storeId++}`
-  Object.assign(debugStore, { ensureAtomState, name })
+  debugStore.name = name
+  debugStore.state = {
+    atomStateMap: buildingBlocks[0]!,
+    mountedMap: buildingBlocks[1]!,
+    invalidatedAtoms: buildingBlocks[2]!,
+    changedAtoms: buildingBlocks[3]!,
+    mountCallbacks: buildingBlocks[4]!,
+    unmountCallbacks: buildingBlocks[5]!,
+    storeHooks: buildingBlocks[6]!,
+  }
   return debugStore
 }
 

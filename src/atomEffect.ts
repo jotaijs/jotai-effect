@@ -47,21 +47,20 @@ export type Effect = (
 ) => void | Cleanup
 
 type Ref = [
-  dependencies?: Set<AnyAtom>,
-  atomState?: AtomState<void>,
-  mountedAtoms?: Map<AnyAtom, AtomState<void>>,
+  dependencies: Set<AnyAtom>,
+  atomState: AtomState<void>,
+  mountedAtoms: Map<AnyAtom, AtomState<void>>,
 ]
 
 export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
-  const refAtom = atom<Ref>(() => [])
+  const refAtom = atom<Partial<Ref>>(() => [])
 
   const effectAtom = atom(function effectAtomRead(get) {
     const [dependencies, atomState, mountedAtoms] = get(refAtom)
-    if (!mountedAtoms!.has(effectAtom)) {
-      return
+    if (mountedAtoms!.has(effectAtom)) {
+      dependencies!.forEach(get)
+      ++atomState!.n
     }
-    dependencies!.forEach(get)
-    ++atomState!.n
   }) as Atom<void> & { effect: Effect }
 
   effectAtom.effect = effect
@@ -268,11 +267,12 @@ function ensureAtomEffectChannel(store: Store): AtomEffectChannel {
   if (!atomEffectChannel) {
     atomEffectChannel = new Set()
     atomEffectChannelStoreMap.set(store, atomEffectChannel)
-    const call = (fn: () => void) => fn()
     storeHooks.f.add(function storeOnFlush() {
       // flush
-      atomEffectChannel!.forEach(call)
-      atomEffectChannel!.clear()
+      for (const fn of atomEffectChannel!) {
+        atomEffectChannel!.delete(fn)
+        fn()
+      }
     })
   }
   return atomEffectChannel
