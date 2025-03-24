@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { useAtomValue } from 'jotai/react'
-import { atom } from 'jotai/vanilla'
 import { describe, expect, it, vi } from 'vitest'
+import { atom } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
 import { createDebugStore } from './test-utils'
@@ -253,7 +253,6 @@ describe('withAtomEffect', () => {
       const discount = get(discountAtom)
       if (discount === 20 || discount === 80) {
         const p = getNextPrice(get.peek(unitPriceAtom), discount)
-        console.log(p)
         set(priceAtom, p)
       }
     })

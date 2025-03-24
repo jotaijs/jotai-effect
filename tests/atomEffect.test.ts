@@ -2,13 +2,13 @@ import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { act, render } from '@testing-library/react'
 import { Provider, useAtomValue } from 'jotai/react'
+import { describe, expect, it, vi } from 'vitest'
 import { atom } from 'jotai/vanilla'
 import {
   INTERNAL_buildStoreRev1 as INTERNAL_buildStore,
   INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
   INTERNAL_initializeStoreHooks,
 } from 'jotai/vanilla/internals'
-import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { DeferredPromise, createDebugStore, createDeferred } from './test-utils'
 
