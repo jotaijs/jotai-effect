@@ -11,7 +11,7 @@ export function withAtomEffect<T extends Atom<unknown>>(
     const getter = ((a) =>
       a === targetWithEffect ? get(targetAtom) : get(a)) as typeof get
     getter.peek = get.peek
-    return targetWithEffect.effect(getter, set)
+    return targetWithEffect.effect.call(targetAtom, getter, set)
   })
   if (isDev()) {
     Object.defineProperty(effectAtom, 'debugLabel', {
@@ -19,9 +19,7 @@ export function withAtomEffect<T extends Atom<unknown>>(
     })
     effectAtom.debugPrivate = true
   }
-  const descriptors = Object.getOwnPropertyDescriptors(
-    targetAtom as T & { effect: Effect }
-  )
+  const descriptors = Object.getOwnPropertyDescriptors(targetAtom)
   descriptors.read.value = (get) => {
     try {
       return get(targetAtom)

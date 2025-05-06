@@ -15,7 +15,7 @@ import {
 } from 'jotai/vanilla/internals'
 import { isDev } from './env'
 
-const getBuildingBlocks = (store: Store) => {
+function getBuildingBlocks(store: Store) {
   const buildingBlocks = INTERNAL_getBuildingBlocks(store)
   return [
     buildingBlocks[1], // mountedAtoms
