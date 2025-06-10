@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { useAtomValue } from 'jotai/react'
-import { describe, expect, it, vi } from 'vitest'
 import { Getter, atom } from 'jotai/vanilla'
+import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
 import { createDebugStore } from './test-utils'

@@ -3,5 +3,6 @@
 .vscode
 dist
 jotai
+-jotai
 node_modules
 .DS_Store
