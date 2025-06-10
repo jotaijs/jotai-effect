@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { useAtomValue } from 'jotai/react'
 import { describe, expect, it, vi } from 'vitest'
-import { atom } from 'jotai/vanilla'
+import { Getter, atom } from 'jotai/vanilla'
 import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
 import { createDebugStore } from './test-utils'
@@ -300,5 +300,30 @@ describe('withAtomEffect', () => {
     const store = createDebugStore()
     store.sub(atomB, () => {})
     expect(store.get(atomB)).toBe(1)
+  })
+
+  it('should not cause infinite loops when depending on atoms in atoms', async () => {
+    function atomsInAtom(fn: (get: Getter) => number) {
+      const data = atom((get) => {
+        fn(get)
+        const inner = atom(0)
+        inner.onMount = (setAtom) => setAtom(1)
+        return inner
+      })
+      return atom((get) => get(get(data)))
+    }
+
+    const atomsInAtomsAtom = atomsInAtom((get) => {
+      return get(progressEffectAtom)
+    })
+
+    const progressAtom = atom(0)
+    const progressEffectAtom = withAtomEffect(progressAtom, (get) => {
+      get(atomsInAtomsAtom)
+    })
+
+    const store = createDebugStore()
+    store.sub(progressEffectAtom, () => {})
+    await Promise.resolve()
   })
 })

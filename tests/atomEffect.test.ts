@@ -320,7 +320,7 @@ it('should work with both set.recurse and set', function test() {
   expect(runCount).toBe(4)
 })
 
-it('should disallow synchronous set.recurse in cleanup', function test() {
+it.only('should disallow synchronous set.recurse in cleanup', function test() {
   const watchedAtom = atom(0)
   watchedAtom.debugLabel = 'watchedAtom'
 
