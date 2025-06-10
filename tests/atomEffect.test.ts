@@ -2,13 +2,13 @@ import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { act, render } from '@testing-library/react'
 import { Provider, useAtomValue } from 'jotai/react'
-import { describe, expect, it, vi } from 'vitest'
 import { atom } from 'jotai/vanilla'
 import {
   INTERNAL_buildStoreRev1 as INTERNAL_buildStore,
   INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
   INTERNAL_initializeStoreHooks,
 } from 'jotai/vanilla/internals'
+import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { DeferredPromise, createDebugStore, createDeferred } from './test-utils'
 
@@ -344,7 +344,7 @@ it('should disallow synchronous set.recurse in cleanup', function test() {
   try {
     store.set(anotherAtom, (v) => v + 1)
   } catch (e) {
-    error = e as Error
+    error = e instanceof AggregateError ? e.errors[0] : e
   }
   expect(error?.message).toBe('set.recurse is not allowed in cleanup')
 })
@@ -876,9 +876,14 @@ it('should throw on set when an error is thrown in effect', async function test(
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
 
-  expect(() => {
+  let error: Error | undefined
+  try {
     store.set(refreshAtom, (v) => v + 1)
-  }).toThrowError('effect error')
+  } catch (e) {
+    error = e instanceof AggregateError ? e.errors[0] : e
+  }
+
+  expect(error?.message).toBe('effect error')
 })
 
 it('should throw on set when an error is thrown in cleanup', async function test() {
@@ -896,9 +901,14 @@ it('should throw on set when an error is thrown in cleanup', async function test
   const store = createDebugStore()
   store.sub(effectAtom, () => {})
 
-  expect(() => store.set(refreshAtom, (v) => v + 1)).toThrowError(
-    'effect cleanup error'
-  )
+  let error: Error | undefined
+  try {
+    store.set(refreshAtom, (v) => v + 1)
+  } catch (e) {
+    error = e instanceof AggregateError ? e.errors[0] : e
+  }
+
+  expect(error?.message).toBe('effect cleanup error')
 })
 
 it('should not suspend the component', function test() {

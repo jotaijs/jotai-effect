@@ -1,4 +1,8 @@
 import type { Atom } from 'jotai/vanilla'
+import {
+  INTERNAL_getBuildingBlocksRev1 as getBuildingBlocks,
+  INTERNAL_initializeStoreHooks as initializeStoreHooks,
+} from 'jotai/vanilla/internals'
 import type { Effect } from './atomEffect'
 import { atomEffect } from './atomEffect'
 import { isDev } from './env'
@@ -20,20 +24,27 @@ export function withAtomEffect<T extends Atom<unknown>>(
     effectAtom.debugPrivate = true
   }
   const descriptors = Object.getOwnPropertyDescriptors(targetAtom)
-  descriptors.read.value = (get) => {
-    try {
-      return get(targetAtom)
-    } finally {
-      get(effectAtom)
-    }
-  }
+  descriptors.read.value = targetAtom.read.bind(targetAtom)
   if ('write' in targetAtom && typeof targetAtom.write === 'function') {
     descriptors.write!.value = targetAtom.write.bind(targetAtom)
-    delete descriptors.onMount
   }
   // avoid reading `init` to preserve lazy initialization
   const targetPrototype = Object.getPrototypeOf(targetAtom)
-  const targetWithEffect = Object.create(targetPrototype, descriptors)
+  const targetWithEffect: T & { effect: Effect } = Object.create(
+    targetPrototype,
+    descriptors
+  )
+  targetWithEffect.unstable_onInit = (store) => {
+    const buildingBlocks = getBuildingBlocks(store)
+    const storeHooks = initializeStoreHooks(buildingBlocks[6])
+    let unsub: () => void
+    storeHooks.m.add(targetWithEffect, function mountEffect() {
+      unsub = store.sub(effectAtom, () => {})
+    })
+    storeHooks.u.add(targetWithEffect, function unmountEffect() {
+      unsub!()
+    })
+  }
   targetWithEffect.effect = effect
   return targetWithEffect
 }

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import { type Getter, atom, createStore, getDefaultStore } from 'jotai/vanilla'
+import { describe, expect, it } from 'vitest'
 import { observe } from '../src/observe'
 
 describe('observe', () => {

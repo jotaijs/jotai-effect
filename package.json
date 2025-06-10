@@ -79,7 +79,7 @@
     "eslint-plugin-prettier": "^5.2.3",
     "happy-dom": "^15.11.7",
     "jiti": "^2.4.2",
-    "jotai": "2.12.1",
+    "jotai": "2.12.5",
     "jotai-effect": "link:",
     "prettier": "^3.4.2",
     "react": "^19.0.0",
