@@ -251,6 +251,8 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
     Object.defineProperty(refAtom, 'debugLabel', {
       get: () =>
         effectAtom.debugLabel ? `${effectAtom.debugLabel}:ref` : undefined,
+      configurable: true,
+      enumerable: true,
     })
     refAtom.debugPrivate = true
   }
