@@ -5,9 +5,6 @@ import prettierPlugin from 'eslint-plugin-prettier'
 import * as tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  // ─────────────────────────────────────────────────────────────
-  // 1) Main config, merges "extends" equivalents + custom rules
-  // ─────────────────────────────────────────────────────────────
   {
     files: ['**/*.{js,jsx,ts,tsx,json}'],
   },
@@ -91,10 +88,6 @@ export default tseslint.config(
   {
     ignores: ['dist/'],
   },
-
-  // ─────────────────────────────────────────────────────────────
-  // 2) Overrides for "src" — specify TS project config
-  // ─────────────────────────────────────────────────────────────
   {
     files: ['src'],
     languageOptions: {
@@ -103,18 +96,13 @@ export default tseslint.config(
       },
     },
   },
-
-  // ─────────────────────────────────────────────────────────────
-  // 3) Overrides for test files (if needed)
-  // ─────────────────────────────────────────────────────────────
+  {
+    ignores: ['dist/', 'jotai/**', 'jotai-effect/**'],
+  },
   {
     files: ['tests/**/*.tsx', 'tests/**/*'],
     rules: {},
   },
-
-  // ─────────────────────────────────────────────────────────────
-  // 4) Overrides for JS config files in root
-  // ─────────────────────────────────────────────────────────────
   {
     files: ['./*.js'],
     rules: {},

@@ -1,8 +1,15 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noEmit": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "jotai": ["./jotai/src/index.ts"],
+      "jotai/*": ["./jotai/src/*"],
+      "jotai-scope": ["./src"]
+    },
+    "types": ["vitest/globals"]
   },
-  "include": ["**/tests/*", "**/*.test.*"]
+  "include": ["src", "jotai/src", "tests"]
 }
