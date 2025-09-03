@@ -23,17 +23,13 @@ export function withAtomEffect<T extends Atom<unknown>>(
     })
     effectAtom.debugPrivate = true
   }
-  const descriptors = Object.getOwnPropertyDescriptors(targetAtom)
-  descriptors.read.value = targetAtom.read.bind(targetAtom)
+  const proto = Object.getPrototypeOf(targetAtom)
+  const desc = Object.getOwnPropertyDescriptors(targetAtom)
+  desc.read.value = targetAtom.read.bind(targetAtom)
   if ('write' in targetAtom && typeof targetAtom.write === 'function') {
-    descriptors.write!.value = targetAtom.write.bind(targetAtom)
+    desc.write!.value = targetAtom.write.bind(targetAtom)
   }
-  // avoid reading `init` to preserve lazy initialization
-  const targetPrototype = Object.getPrototypeOf(targetAtom)
-  const targetWithEffect: T & { effect: Effect } = Object.create(
-    targetPrototype,
-    descriptors
-  )
+  const targetWithEffect: T & { effect: Effect } = Object.create(proto, desc)
   targetWithEffect.unstable_onInit = (store) => {
     const buildingBlocks = getBuildingBlocks(store)
     const storeHooks = initializeStoreHooks(buildingBlocks[6])
