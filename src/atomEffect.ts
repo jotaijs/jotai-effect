@@ -5,7 +5,7 @@ import type {
   INTERNAL_buildStoreRev1 as buildStore,
 } from 'jotai/vanilla/internals'
 import {
-  INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
+  INTERNAL_getBuildingBlocksRev1 as getBuildingBlocks,
   INTERNAL_hasInitialValue as hasInitialValue,
   INTERNAL_initializeStoreHooks as initializeStoreHooks,
   INTERNAL_isAtomStateInitialized as isAtomStateInitialized,
@@ -15,29 +15,13 @@ import {
 } from 'jotai/vanilla/internals'
 import { isDev } from './env'
 
-function getBuildingBlocks(store: Store) {
-  const buildingBlocks = INTERNAL_getBuildingBlocks(store)
-  return [
-    buildingBlocks[1], // mountedAtoms
-    buildingBlocks[3], // changedAtoms
-    initializeStoreHooks(buildingBlocks[6]), // storeHooks
-    buildingBlocks[11], // ensureAtomState
-    buildingBlocks[14], // readAtomState
-    buildingBlocks[16], // writeAtomState
-    buildingBlocks[17], // mountDependencies
-    buildingBlocks[15], // invalidateDependents
-    buildingBlocks[13], // recomputeInvalidatedAtoms
-    buildingBlocks[12], // flushCallbacks
-  ] as const
-}
-
 type Store = ReturnType<typeof buildStore>
 
 type AnyAtom = Atom<unknown>
 
-type GetterWithPeek = Getter & { peek: Getter }
+export type GetterWithPeek = Getter & { peek: Getter }
 
-type SetterWithRecurse = Setter & { recurse: Setter }
+export type SetterWithRecurse = Setter & { recurse: Setter }
 
 type Cleanup = () => void
 
@@ -202,18 +186,18 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
       }
     }
 
-    const [
-      mountedAtoms,
-      changedAtoms,
-      storeHooks,
-      ensureAtomState,
-      readAtomState,
-      writeAtomState,
-      mountDependencies,
-      invalidateDependents,
-      recomputeInvalidatedAtoms,
-      flushCallbacks,
-    ] = getBuildingBlocks(store)
+    const buildingBlocks = getBuildingBlocks(store)
+    const mountedAtoms = buildingBlocks[1]
+    const changedAtoms = buildingBlocks[3]
+    const storeHooks = initializeStoreHooks(buildingBlocks[6])
+    const ensureAtomState = buildingBlocks[11]
+    const flushCallbacks = buildingBlocks[12]
+    const recomputeInvalidatedAtoms = buildingBlocks[13]
+    const readAtomState = buildingBlocks[14]
+    const invalidateDependents = buildingBlocks[15]
+    const writeAtomState = buildingBlocks[16]
+    const mountDependencies = buildingBlocks[17]
+
     const atomEffectChannel = ensureAtomEffectChannel(store)
     const atomState = ensureAtomState(effectAtom)
     // initialize atomState
@@ -264,7 +248,8 @@ type AtomEffectChannel = Set<() => void>
 const atomEffectChannelStoreMap = new WeakMap<Store, AtomEffectChannel>()
 
 function ensureAtomEffectChannel(store: Store): AtomEffectChannel {
-  const storeHooks = getBuildingBlocks(store)[2]
+  const buildingBlocks = getBuildingBlocks(store)
+  const storeHooks = initializeStoreHooks(buildingBlocks[6])
   let atomEffectChannel = atomEffectChannelStoreMap.get(store)
   if (!atomEffectChannel) {
     atomEffectChannel = new Set()

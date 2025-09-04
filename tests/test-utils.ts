@@ -1,18 +1,19 @@
 import { Component, type ErrorInfo, type ReactNode, createElement } from 'react'
 import {
-  INTERNAL_buildStoreRev1 as INTERNAL_buildStore,
-  INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
+  INTERNAL_buildStoreRev1 as buildStore,
+  INTERNAL_getBuildingBlocksRev1 as getBuildingBlocks,
+  INTERNAL_initializeStoreHooks as initializeStoreHooks,
 } from 'jotai/vanilla/internals'
 
 //
 // Debug Store
 //
 
-type Store = ReturnType<typeof INTERNAL_buildStore>
+type Store = ReturnType<typeof buildStore>
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] }
 
-type BuildingBlocks = Mutable<ReturnType<typeof INTERNAL_getBuildingBlocks>>
+type BuildingBlocks = Mutable<ReturnType<typeof getBuildingBlocks>>
 
 type DebugStore = Store & {
   name: string
@@ -31,14 +32,14 @@ let storeId = 0
 export function createDebugStore(
   name: string = `debug${storeId++}`
 ): DebugStore {
-  const foundation = INTERNAL_getBuildingBlocks(
-    INTERNAL_buildStore()
+  const foundation = getBuildingBlocks(
+    buildStore(new Map(), new Map(), new Map())
   ) as BuildingBlocks
   const buildingBlocks = foundation.slice(0, 7) as Partial<BuildingBlocks>
   const ensureAtomState = foundation[11]!
   buildingBlocks[11] = (atom) =>
     Object.assign(ensureAtomState(atom), { label: atom.debugLabel })
-  const debugStore = INTERNAL_buildStore(...buildingBlocks) as DebugStore
+  const debugStore = buildStore(...buildingBlocks) as DebugStore
   debugStore.name = name
   debugStore.state = {
     atomStateMap: buildingBlocks[0]!,
@@ -47,7 +48,7 @@ export function createDebugStore(
     changedAtoms: buildingBlocks[3]!,
     mountCallbacks: buildingBlocks[4]!,
     unmountCallbacks: buildingBlocks[5]!,
-    storeHooks: buildingBlocks[6]!,
+    storeHooks: initializeStoreHooks(buildingBlocks[6]!),
   }
   return debugStore
 }
