@@ -2,15 +2,15 @@ import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { act, render } from '@testing-library/react'
 import { Provider, useAtomValue } from 'jotai/react'
-import { atom } from 'jotai/vanilla'
+import { atom, createStore } from 'jotai/vanilla'
 import {
-  INTERNAL_buildStoreRev1 as INTERNAL_buildStore,
-  INTERNAL_getBuildingBlocksRev1 as INTERNAL_getBuildingBlocks,
-  INTERNAL_initializeStoreHooks,
+  INTERNAL_getBuildingBlocksRev2 as getBuildingBlocks,
+  INTERNAL_initializeStoreHooksRev2 as initializeStoreHooks,
 } from 'jotai/vanilla/internals'
 import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
-import { DeferredPromise, createDebugStore, createDeferred } from './test-utils'
+import type { DeferredPromise } from './test-utils'
+import { createDebugStore, createDeferred } from './test-utils'
 
 it('should run the effect on vanilla store', function test() {
   const countAtom = atom(0)
@@ -120,7 +120,7 @@ it('should not cause infinite loops when effect updates the watched atom asynchr
   watchedAtom.debugLabel = 'watchedAtom'
 
   let runCount = 0
-  let deferred: DeferredPromise
+  let deferred: DeferredPromise<void>
   const effectAtom = atomEffect((get, set) => {
     get(watchedAtom)
     ++runCount
@@ -261,7 +261,7 @@ it('should allow asynchronous recursion with asynchronous set.recurse', async fu
   watchedAtom.debugLabel = 'watchedAtom'
 
   const exitDeferred = createDeferred()
-  const deferreds: DeferredPromise[] = []
+  const deferreds: DeferredPromise<void>[] = []
 
   const effectAtom = atomEffect((get, { recurse }) => {
     const value = get(watchedAtom)
@@ -718,7 +718,7 @@ it('should abort the previous promise', async function test() {
   let runCount = 0
   const abortedRuns: number[] = []
   const completedRuns: number[] = []
-  const resolves: DeferredPromise[] = []
+  const resolves: DeferredPromise<void>[] = []
   const countAtom = atom(0)
   countAtom.debugLabel = 'countAtom'
 
@@ -990,10 +990,8 @@ it('should not add dependencies added asynchronously', async function test() {
 })
 
 it('gets the right internals from the store', function test() {
-  const store = INTERNAL_buildStore()
-  const buildingBlocks = INTERNAL_getBuildingBlocks(store)
-  INTERNAL_initializeStoreHooks(buildingBlocks[6])
-  expect(buildingBlocks.length).toBe(20)
+  const buildingBlocks = getBuildingBlocks(createStore())
+  initializeStoreHooks(buildingBlocks[6])
   expect(buildingBlocks[1]).toBeInstanceOf(WeakMap) // mountedAtoms
   expect(buildingBlocks[3]).toBeInstanceOf(Set) // changedAtoms
   expect(buildingBlocks[6]).toSatisfy(
@@ -1009,20 +1007,27 @@ it('gets the right internals from the store', function test() {
       'f' in storeHooks &&
       typeof storeHooks.f === 'function'
   ) // storeHooks
-  expect(buildingBlocks[11]).toBeInstanceOf(Function) // ensureAtomState
-  expect(buildingBlocks[11]).toHaveLength(1)
-  expect(buildingBlocks[14]).toBeInstanceOf(Function) // readAtomState
-  expect(buildingBlocks[14]).toHaveLength(1)
-  expect(buildingBlocks[16]).toBeInstanceOf(Function) // writeAtomState
-  expect(buildingBlocks[16]).toHaveLength(1)
-  expect(buildingBlocks[17]).toBeInstanceOf(Function) // mountDependencies
-  expect(buildingBlocks[17]).toHaveLength(1)
-  expect(buildingBlocks[15]).toBeInstanceOf(Function) // invalidateDependents
-  expect(buildingBlocks[15]).toHaveLength(1)
-  expect(buildingBlocks[13]).toBeInstanceOf(Function) // recomputeInvalidatedAtoms
-  expect(buildingBlocks[13]).toHaveLength(0)
-  expect(buildingBlocks[12]).toBeInstanceOf(Function) // flushCallbacks
-  expect(buildingBlocks[12]).toHaveLength(0)
+  expect(buildingBlocks[11].name).toBe('ensureAtomState')
+  expect(buildingBlocks[11]).toBeInstanceOf(Function)
+  expect(buildingBlocks[11]).toHaveLength(2)
+  expect(buildingBlocks[12].name).toBe('flushCallbacks')
+  expect(buildingBlocks[12]).toBeInstanceOf(Function)
+  expect(buildingBlocks[12]).toHaveLength(1)
+  expect(buildingBlocks[13].name).toBe('recomputeInvalidatedAtoms')
+  expect(buildingBlocks[13]).toBeInstanceOf(Function)
+  expect(buildingBlocks[13]).toHaveLength(1)
+  expect(buildingBlocks[14].name).toBe('readAtomState')
+  expect(buildingBlocks[14]).toBeInstanceOf(Function)
+  expect(buildingBlocks[14]).toHaveLength(2)
+  expect(buildingBlocks[15].name).toBe('invalidateDependents')
+  expect(buildingBlocks[15]).toBeInstanceOf(Function)
+  expect(buildingBlocks[15]).toHaveLength(2)
+  expect(buildingBlocks[16].name).toBe('writeAtomState')
+  expect(buildingBlocks[16]).toBeInstanceOf(Function)
+  expect(buildingBlocks[16]).toHaveLength(2)
+  expect(buildingBlocks[17].name).toBe('mountDependencies')
+  expect(buildingBlocks[17]).toBeInstanceOf(Function)
+  expect(buildingBlocks[17]).toHaveLength(2)
 })
 
 it('should not run the effect when the effectAtom is unmounted', function test() {
@@ -1062,8 +1067,8 @@ it('should cause change hooks to fire once when effect updates the watched atom'
   effectAtom.debugLabel = 'effect'
 
   const store = createDebugStore()
-  const buildingBlocks = INTERNAL_getBuildingBlocks(store)
-  const storeHooks = INTERNAL_initializeStoreHooks(buildingBlocks[6])
+  const buildingBlocks = getBuildingBlocks(store)
+  const storeHooks = initializeStoreHooks(buildingBlocks[6])
   const countChanged = vi.fn()
   storeHooks.c.add(countAtom, countChanged)
   const effectChanged = vi.fn()

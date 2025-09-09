@@ -1,7 +1,7 @@
 import type { Atom, WritableAtom } from 'jotai/vanilla'
 import {
-  INTERNAL_getBuildingBlocksRev1 as getBuildingBlocks,
-  INTERNAL_initializeStoreHooks as initializeStoreHooks,
+  INTERNAL_getBuildingBlocksRev2 as getBuildingBlocks,
+  INTERNAL_initializeStoreHooksRev2 as initializeStoreHooks,
 } from 'jotai/vanilla/internals'
 import type { Effect, GetterWithPeek, SetterWithRecurse } from './atomEffect'
 import { atomEffect } from './atomEffect'
@@ -81,26 +81,26 @@ export function withAtomEffect<T extends Atom<unknown>>(
       })
       effectAtom.debugPrivate = true
     }
-    const effectAtomState = ensureAtomState(effectAtom)
-    const targetWithEffectAtomState = ensureAtomState(targetWithEffect)
+    const effectAtomState = ensureAtomState(store, effectAtom)
+    const targetWithEffectAtomState = ensureAtomState(store, targetWithEffect)
 
     storeHooks.c.add(targetWithEffect, function atomChanged() {
       if (isSubscribed) {
         invalidatedAtoms.set(effectAtom, effectAtomState.n)
         effectAtomState.d.set(targetWithEffect, targetWithEffectAtomState.n - 1)
-        readAtomState(effectAtom)
-        mountDependencies(effectAtom)
+        readAtomState(store, effectAtom)
+        mountDependencies(store, effectAtom)
         invalidatedAtoms.delete(effectAtom)
         effectAtomState.d.delete(targetWithEffect)
       }
     })
     storeHooks.m.add(targetWithEffect, function mountEffect() {
-      mountAtom(effectAtom)
-      flushCallbacks()
+      mountAtom(store, effectAtom)
+      flushCallbacks(store)
     })
     storeHooks.u.add(targetWithEffect, function unmountEffect() {
-      unmountAtom(effectAtom)
-      flushCallbacks()
+      unmountAtom(store, effectAtom)
+      flushCallbacks(store)
     })
     storeHooks.f.add(function flushEffect() {
       inProgress = false
