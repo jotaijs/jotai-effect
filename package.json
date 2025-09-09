@@ -49,6 +49,8 @@
     "fix:format": "prettier --write .",
     "fix:lint": "eslint --config ./eslint.config.ts --fix .",
     "pretest": "pnpm compile",
+    "setup": "pnpm run '/^setup:.*/'",
+    "setup:jotai": "git clone https://github.com/pmndrs/jotai.git && $(cd jotai && pnpm install && pnpm build)",
     "test": "pnpm run \"/^test:.*/\"",
     "test:format": "prettier --list-different .",
     "test:types": "tsc --noEmit",
