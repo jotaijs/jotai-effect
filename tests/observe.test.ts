@@ -1,4 +1,5 @@
-import { type Getter, atom, createStore, getDefaultStore } from 'jotai/vanilla'
+import type { Getter } from 'jotai/vanilla'
+import { atom, createStore, getDefaultStore } from 'jotai/vanilla'
 import { describe, expect, it } from 'vitest'
 import { observe } from '../src/observe'
 

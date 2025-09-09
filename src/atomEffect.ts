@@ -2,16 +2,16 @@ import type { Atom, Getter, Setter, WritableAtom } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 import type {
   INTERNAL_AtomState as AtomState,
-  INTERNAL_buildStoreRev1 as buildStore,
+  INTERNAL_StoreHooks,
+  INTERNAL_buildStoreRev2 as buildStore,
 } from 'jotai/vanilla/internals'
 import {
-  INTERNAL_getBuildingBlocksRev1 as getBuildingBlocks,
+  INTERNAL_getBuildingBlocksRev2 as getBuildingBlocks,
   INTERNAL_hasInitialValue as hasInitialValue,
-  INTERNAL_initializeStoreHooks as initializeStoreHooks,
+  INTERNAL_initializeStoreHooksRev2 as initializeStoreHooks,
   INTERNAL_isAtomStateInitialized as isAtomStateInitialized,
   INTERNAL_isSelfAtom as isSelfAtom,
   INTERNAL_returnAtomValue as returnAtomValue,
-  INTERNAL_setAtomStateValueOrPromise as setAtomStateValueOrPromise,
 } from 'jotai/vanilla/internals'
 import { isDev } from './env'
 
@@ -69,10 +69,10 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
           return store.get(a)
         }
         if (isSelfAtom(effectAtom, a)) {
-          const aState = ensureAtomState(a)
+          const aState = ensureAtomState(store, a)
           if (!isAtomStateInitialized(aState)) {
             if (hasInitialValue(a)) {
-              setAtomStateValueOrPromise(a, a.init, ensureAtomState)
+              setAtomStateValueOrPromise(store, a, a.init)
             } else {
               // NOTE invalid derived atoms can reach here
               throw new Error('no atom init')
@@ -81,7 +81,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
           return returnAtomValue(aState)
         }
         // a !== atom
-        const aState = readAtomState(a)
+        const aState = readAtomState(store, a)
         try {
           return returnAtomValue(aState)
         } finally {
@@ -91,9 +91,9 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
             deps.add(a)
           } else {
             if (mountedAtoms.has(a)) {
-              mountDependencies(effectAtom)
-              recomputeInvalidatedAtoms()
-              flushCallbacks()
+              mountDependencies(store, effectAtom)
+              recomputeInvalidatedAtoms(store)
+              flushCallbacks(store)
             }
           }
         }
@@ -105,7 +105,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
         a: WritableAtom<V, As, R>,
         ...args: As
       ) => {
-        const aState = ensureAtomState(a)
+        const aState = ensureAtomState(store, a)
         try {
           ++inProgress
           if (isSelfAtom(effectAtom, a)) {
@@ -115,21 +115,21 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
             }
             const prevEpochNumber = aState.n
             const v = args[0] as V
-            setAtomStateValueOrPromise(a, v, ensureAtomState)
-            mountDependencies(a)
+            setAtomStateValueOrPromise(store, a, v)
+            mountDependencies(store, a)
             if (prevEpochNumber !== aState.n) {
               changedAtoms.add(a)
               storeHooks.c?.(a)
-              invalidateDependents(a)
+              invalidateDependents(store, a)
             }
             return undefined as R
           } else {
-            return writeAtomState(a, ...args)
+            return writeAtomState(store, a, ...args)
           }
         } finally {
           if (!isSync) {
-            recomputeInvalidatedAtoms()
-            flushCallbacks()
+            recomputeInvalidatedAtoms(store)
+            flushCallbacks(store)
           }
           --inProgress
         }
@@ -144,10 +144,10 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
         }
         try {
           isRecursing = true
-          mountDependencies(effectAtom)
+          mountDependencies(store, effectAtom)
           return setter(a, ...args)
         } finally {
-          recomputeInvalidatedAtoms()
+          recomputeInvalidatedAtoms(store)
           isRecursing = false
           if (hasChanged) {
             hasChanged = false
@@ -179,10 +179,10 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
       } finally {
         isSync = false
         deps.forEach((depAtom) => {
-          atomState.d.set(depAtom, ensureAtomState(depAtom).n)
+          atomState.d.set(depAtom, ensureAtomState(store, depAtom).n)
         })
-        mountDependencies(effectAtom)
-        recomputeInvalidatedAtoms()
+        mountDependencies(store, effectAtom)
+        recomputeInvalidatedAtoms(store)
       }
     }
 
@@ -197,9 +197,10 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
     const invalidateDependents = buildingBlocks[15]
     const writeAtomState = buildingBlocks[16]
     const mountDependencies = buildingBlocks[17]
+    const setAtomStateValueOrPromise = buildingBlocks[20]
 
-    const atomEffectChannel = ensureAtomEffectChannel(store)
-    const atomState = ensureAtomState(effectAtom)
+    const atomEffectChannel = ensureAtomEffectChannel(store, storeHooks)
+    const atomState = ensureAtomState(store, effectAtom)
     // initialize atomState
     atomState.v = undefined
 
@@ -247,9 +248,10 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
 type AtomEffectChannel = Set<() => void>
 const atomEffectChannelStoreMap = new WeakMap<Store, AtomEffectChannel>()
 
-function ensureAtomEffectChannel(store: Store): AtomEffectChannel {
-  const buildingBlocks = getBuildingBlocks(store)
-  const storeHooks = initializeStoreHooks(buildingBlocks[6])
+function ensureAtomEffectChannel(
+  store: Store,
+  storeHooks: Required<INTERNAL_StoreHooks>
+): AtomEffectChannel {
   let atomEffectChannel = atomEffectChannelStoreMap.get(store)
   if (!atomEffectChannel) {
     atomEffectChannel = new Set()
