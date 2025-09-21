@@ -10,7 +10,6 @@ import {
   INTERNAL_hasInitialValue as hasInitialValue,
   INTERNAL_initializeStoreHooksRev2 as initializeStoreHooks,
   INTERNAL_isAtomStateInitialized as isAtomStateInitialized,
-  INTERNAL_isSelfAtom as isSelfAtom,
   INTERNAL_returnAtomValue as returnAtomValue,
 } from 'jotai/vanilla/internals'
 import { isDev } from './env'
@@ -68,7 +67,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
         if (fromCleanup) {
           return store.get(a)
         }
-        if (isSelfAtom(effectAtom, a)) {
+        if (a === (effectAtom as AnyAtom)) {
           const aState = ensureAtomState(store, a)
           if (!isAtomStateInitialized(aState)) {
             if (hasInitialValue(a)) {
@@ -108,7 +107,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
         const aState = ensureAtomState(store, a)
         try {
           ++inProgress
-          if (isSelfAtom(effectAtom, a)) {
+          if (a === (effectAtom as AnyAtom)) {
             if (!hasInitialValue(a)) {
               // NOTE technically possible but restricted as it may cause bugs
               throw new Error('atom not writable')
