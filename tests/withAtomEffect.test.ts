@@ -394,4 +394,33 @@ describe('withAtomEffect', () => {
     u1()
     u2()
   })
+
+  it('subscribing to an enhanced atom after it has been written to does not cause a stale read', () => {
+    const atomA = atom<boolean>()
+    atomA.debugLabel = 'atomA'
+    const atomB = withAtomEffect(atom(false), (get, set) => {
+      if (get(atomA) === true) {
+        set(atomB, true)
+      }
+    })
+    atomB.debugLabel = 'atomB'
+    const atomC = atom((get) => get(atomB))
+    atomC.debugLabel = 'atomC'
+
+    const store = createDebugStore()
+    expect(store.get(atomA)).toBe(undefined)
+    expect(store.get(atomB)).toBe(false)
+    expect(store.get(atomC)).toBe(false)
+
+    store.set(atomA, true)
+    expect(store.get(atomA)).toBe(true)
+    expect(store.get(atomB)).toBe(false)
+    expect(store.get(atomC)).toBe(false)
+
+    store.sub(atomC, () => {})
+    expect(store.get(atomA)).toBe(true)
+    expect(store.get(atomB)).toBe(true)
+
+    expect(store.get(atomC)).toBe(true)
+  })
 })
