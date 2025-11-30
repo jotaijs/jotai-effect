@@ -92,7 +92,6 @@ export function withAtomEffect<T extends Atom<unknown>>(
         readAtomState(store, effectAtom)
         mountDependencies(store, effectAtom)
         invalidatedAtoms.delete(effectAtom)
-        // recomputeInvalidatedAtoms(store)
         effectAtomState.d.delete(targetWithEffect)
       }
     })

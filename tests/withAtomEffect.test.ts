@@ -421,11 +421,6 @@ describe('withAtomEffect', () => {
     expect(store.get(atomA)).toBe(true)
     expect(store.get(atomB)).toBe(true)
 
-    // Works in `v2.0.3`
-    // Fails in `v2.0.4`, `v2.0.5`, `v2.1.0`, `v2.1.1`, `v2.1.2`, `v2.1.4`
-    // AssertionError: expected false to be true // Object.is equality
-    // Expected :true
-    // Actual   :false
     expect(store.get(atomC)).toBe(true)
   })
 })
