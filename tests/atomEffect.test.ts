@@ -1083,3 +1083,33 @@ it('should cause change hooks to fire once when effect updates the watched atom'
   expect(countChanged).toHaveBeenCalledTimes(1)
   expect(effectChanged).toHaveBeenCalledTimes(1)
 })
+
+it('should not cause subscribers to run when effect runs', function test() {
+  const countAtom = atom(0)
+  countAtom.debugLabel = 'countAtom'
+
+  const refreshAtom = atom(0)
+  refreshAtom.debugLabel = 'refreshAtom'
+
+  let runCount = 0
+  const effectAtom = atomEffect((get, set) => {
+    ++runCount
+    get(refreshAtom)
+    get(countAtom)
+    set(countAtom, (v) => v + 1)
+  })
+  effectAtom.debugLabel = 'effectAtom'
+
+  const store = createDebugStore()
+  const countSub = vi.fn()
+  store.sub(countAtom, countSub)
+  const effectSub = vi.fn()
+  store.sub(effectAtom, effectSub)
+  expect(runCount).toBe(1)
+  expect(countSub).toHaveBeenCalledTimes(1)
+  expect(effectSub).toHaveBeenCalledTimes(0)
+  vi.clearAllMocks()
+  store.set(refreshAtom, (v) => v + 1)
+  expect(countSub).toHaveBeenCalledTimes(1)
+  expect(effectSub).toHaveBeenCalledTimes(0)
+})
