@@ -394,4 +394,38 @@ describe('withAtomEffect', () => {
     u1()
     u2()
   })
+
+  it('subscribing to an enhanced atom after it has been written to does not cause a stale read', () => {
+    const atomA = atom<boolean>()
+    atomA.debugLabel = 'atomA'
+    const atomB = withAtomEffect(atom(false), (get, set) => {
+      if (get(atomA) === true) {
+        set(atomB, true)
+      }
+    })
+    atomB.debugLabel = 'atomB'
+    const atomC = atom((get) => get(atomB))
+    atomC.debugLabel = 'atomC'
+
+    const store = createDebugStore()
+    expect(store.get(atomA)).toBe(undefined)
+    expect(store.get(atomB)).toBe(false)
+    expect(store.get(atomC)).toBe(false)
+
+    store.set(atomA, true)
+    expect(store.get(atomA)).toBe(true)
+    expect(store.get(atomB)).toBe(false)
+    expect(store.get(atomC)).toBe(false)
+
+    store.sub(atomC, () => {})
+    expect(store.get(atomA)).toBe(true)
+    expect(store.get(atomB)).toBe(true)
+
+    // Works in `v2.0.3`
+    // Fails in `v2.0.4`, `v2.0.5`, `v2.1.0`, `v2.1.1`, `v2.1.2`, `v2.1.4`
+    // AssertionError: expected false to be true // Object.is equality
+    // Expected :true
+    // Actual   :false
+    expect(store.get(atomC)).toBe(true)
+  })
 })

@@ -43,6 +43,7 @@ export function withAtomEffect<T extends Atom<unknown>>(
     const ensureAtomState = buildingBlocks[11]
     const flushCallbacks = buildingBlocks[12]
     const readAtomState = buildingBlocks[14]
+    const invalidateDependents = buildingBlocks[15]
     const mountDependencies = buildingBlocks[17]
     const mountAtom = buildingBlocks[18]
     const unmountAtom = buildingBlocks[19]
@@ -91,12 +92,21 @@ export function withAtomEffect<T extends Atom<unknown>>(
         readAtomState(store, effectAtom)
         mountDependencies(store, effectAtom)
         invalidatedAtoms.delete(effectAtom)
+        // recomputeInvalidatedAtoms(store)
         effectAtomState.d.delete(targetWithEffect)
       }
     })
     storeHooks.m.add(targetWithEffect, function mountEffect() {
+      const atomState = ensureAtomState(store, targetWithEffect)
+      const { n } = atomState
       mountAtom(store, effectAtom)
       flushCallbacks(store)
+      if (n !== atomState.n) {
+        const unsub = storeHooks.f.add(() => {
+          invalidateDependents(store, targetWithEffect)
+          unsub()
+        })
+      }
     })
     storeHooks.u.add(targetWithEffect, function unmountEffect() {
       unmountAtom(store, effectAtom)
