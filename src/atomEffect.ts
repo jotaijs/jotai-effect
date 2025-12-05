@@ -206,13 +206,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
     Object.assign(store.get(refAtom), [deps, atomState, mountedAtoms])
 
     storeHooks.c.add(effectAtom, function atomOnChange() {
-      if ('delete' in changedAtoms) {
-        ;(changedAtoms as Set<AnyAtom>).delete(effectAtom)
-      } else {
-        const changed = Array.from(changedAtoms).filter((a) => a !== effectAtom)
-        changedAtoms.clear()
-        changed.forEach((a) => changedAtoms.add(a))
-      }
+      ;(changedAtoms as Set<AnyAtom>).delete(effectAtom)
     })
 
     storeHooks.m.add(effectAtom, function atomOnMount() {

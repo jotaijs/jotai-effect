@@ -97,7 +97,7 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/', 'jotai/**', 'jotai-effect/**'],
+    ignores: ['dist/', 'jotai/**', '_jotai/**', 'jotai-effect/**'],
   },
   {
     files: ['tests/**/*.tsx', 'tests/**/*'],
