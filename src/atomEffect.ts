@@ -2,7 +2,8 @@ import type { Atom, Getter, Setter, WritableAtom } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
 import type {
   INTERNAL_AtomState as AtomState,
-  INTERNAL_StoreHooks,
+  INTERNAL_MountedMap as MountedMap,
+  INTERNAL_StoreHooks as StoreHooks,
   INTERNAL_buildStoreRev2 as buildStore,
 } from 'jotai/vanilla/internals'
 import {
@@ -32,15 +33,15 @@ export type Effect = (
 type Ref = [
   dependencies: Set<AnyAtom>,
   atomState: AtomState<void>,
-  mountedAtoms: Map<AnyAtom, AtomState<void>>,
+  mountedMap: MountedMap,
 ]
 
 export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
   const refAtom = atom<Partial<Ref>>(() => [])
 
   const effectAtom = atom(function effectAtomRead(get) {
-    const [dependencies, atomState, mountedAtoms] = get(refAtom)
-    if (mountedAtoms!.has(effectAtom)) {
+    const [dependencies, atomState, mountedMap] = get(refAtom)
+    if (mountedMap!.has(effectAtom)) {
       dependencies!.forEach(get)
       ++atomState!.n
     }
@@ -48,7 +49,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
 
   effectAtom.effect = effect
 
-  effectAtom.unstable_onInit = (store) => {
+  effectAtom.INTERNAL_onInit = (store) => {
     const deps = new Set<AnyAtom>()
     let inProgress = 0
     let isRecursing = false
@@ -85,11 +86,11 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
           return returnAtomValue(aState)
         } finally {
           atomState.d.set(a, aState.n)
-          mountedAtoms.get(a)?.t.add(effectAtom)
+          mountedMap.get(a)?.t.add(effectAtom)
           if (isSync) {
             deps.add(a)
           } else {
-            if (mountedAtoms.has(a)) {
+            if (mountedMap.has(a)) {
               mountDependencies(store, effectAtom)
               recomputeInvalidatedAtoms(store)
               flushCallbacks(store)
@@ -186,7 +187,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
     }
 
     const buildingBlocks = getBuildingBlocks(store)
-    const mountedAtoms = buildingBlocks[1]
+    const mountedMap = buildingBlocks[1]
     const changedAtoms = buildingBlocks[3]
     const storeHooks = initializeStoreHooks(buildingBlocks[6])
     const ensureAtomState = buildingBlocks[11]
@@ -203,7 +204,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
     // initialize atomState
     atomState.v = undefined
 
-    Object.assign(store.get(refAtom), [deps, atomState, mountedAtoms])
+    Object.assign(store.get(refAtom), [deps, atomState, mountedMap])
 
     storeHooks.c.add(effectAtom, function atomOnChange() {
       ;(changedAtoms as Set<AnyAtom>).delete(effectAtom)
@@ -253,7 +254,7 @@ const atomEffectChannelStoreMap = new WeakMap<Store, AtomEffectChannel>()
 
 function ensureAtomEffectChannel(
   store: Store,
-  storeHooks: Required<INTERNAL_StoreHooks>
+  storeHooks: Required<StoreHooks>
 ): AtomEffectChannel {
   let atomEffectChannel = atomEffectChannelStoreMap.get(store)
   if (!atomEffectChannel) {

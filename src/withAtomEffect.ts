@@ -36,7 +36,7 @@ export function withAtomEffect<T extends Atom<unknown>>(
     } as (typeof targetAtom)['write']
   }
   const targetWithEffect: T & { effect: Effect } = Object.create(proto, desc)
-  targetWithEffect.unstable_onInit = (store) => {
+  targetWithEffect.INTERNAL_onInit = (store) => {
     const buildingBlocks = getBuildingBlocks(store)
     const invalidatedAtoms = buildingBlocks[2]
     const storeHooks = initializeStoreHooks(buildingBlocks[6])

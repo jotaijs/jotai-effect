@@ -1,7 +1,7 @@
 {
   "name": "jotai-effect",
   "description": "👻🔁",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "type": "module",
   "author": "David Maskasky",
   "contributors": [
@@ -81,7 +81,7 @@
     "eslint-plugin-prettier": "^5.2.3",
     "happy-dom": "^15.11.7",
     "jiti": "^2.4.2",
-    "jotai": "2.14.0",
+    "jotai": "2.16.0",
     "jotai-effect": "link:",
     "prettier": "^3.4.2",
     "react": "^19.0.0",
