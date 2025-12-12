@@ -1,7 +1,7 @@
 {
   "name": "jotai-effect",
   "description": "👻🔁",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "type": "module",
   "author": "David Maskasky",
   "contributors": [
@@ -21,6 +21,10 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
+      "bun": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
