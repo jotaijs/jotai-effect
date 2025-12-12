@@ -1,7 +1,7 @@
 {
   "name": "jotai-effect",
   "description": "👻🔁",
-  "version": "2.1.7",
+  "version": "2.2.0",
   "type": "module",
   "author": "David Maskasky",
   "contributors": [
@@ -94,7 +94,7 @@
     "vitest": "^3.0.3"
   },
   "peerDependencies": {
-    "jotai": ">=2.14.0"
+    "jotai": ">=2.16.0"
   },
   "engines": {
     "node": ">=12.20.0"
