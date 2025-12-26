@@ -3,10 +3,10 @@ import path from 'path'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
-  const alias = {}
+  const alias: Record<string, string> = {}
   if (mode === 'development' || mode === 'test') {
     alias['jotai-effect'] = path.resolve(__dirname, 'src')
-    const localJotai = path.resolve(__dirname, 'jotai/src')
+    const localJotai = path.resolve(__dirname, '../jotai/src')
     const hasLocalJotai = fs.existsSync(localJotai)
     if (hasLocalJotai) {
       alias['jotai'] = localJotai
@@ -14,7 +14,10 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    resolve: { alias },
+    resolve: {
+      alias,
+      dedupe: ['react', 'react-dom'],
+    },
     build: {
       lib: {
         entry: path.resolve(__dirname, 'src/index.ts'),

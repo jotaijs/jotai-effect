@@ -5,8 +5,8 @@
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
     "paths": {
-      "jotai": ["./jotai/src/index.ts"],
-      "jotai/*": ["./jotai/src/*"],
+      "jotai": ["../jotai/src/index.ts"],
+      "jotai/*": ["../jotai/src/*"],
       "jotai-scope": ["./src"]
     },
     "types": ["vitest/globals"]
