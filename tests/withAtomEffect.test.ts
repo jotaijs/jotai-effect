@@ -423,4 +423,50 @@ describe('withAtomEffect', () => {
 
     expect(store.get(atomC)).toBe(true)
   })
+
+  it('defers effect mount to avoid double-mount desync between sibling readers', function test() {
+    // https://github.com/pmndrs/jotai/discussions/3292
+    const store = createDebugStore()
+    const countAtom = atom(0)
+    const tickerValueAtom = atom(0)
+    const tickerAtom = withAtomEffect(tickerValueAtom, (get, set) => {
+      const count = get(countAtom)
+      set(tickerValueAtom, count)
+    })
+    const derivedAtom = atom((get) => get(tickerAtom) * 1000)
+    const t1Atom = atom((get: Getter) => get(derivedAtom))
+    const t2Atom = atom((get: Getter) => get(derivedAtom))
+
+    let t1: number | undefined
+    let t2: number | undefined
+    const t0Atom = atom((get) => {
+      const count = get(countAtom)
+      if (count === 1) {
+        return
+      }
+      t1 = get(t1Atom)
+      t2 = get(t2Atom)
+    })
+
+    const unsub = store.sub(t0Atom, () => {})
+
+    expect(t1).toBe(0)
+    expect(t2).toBe(0)
+
+    store.set(countAtom, 1)
+    expect(t1).toBe(0)
+    expect(t2).toBe(0)
+
+    store.set(countAtom, 2)
+    expect(t1).toBe(t2)
+
+    store.set(countAtom, 3)
+    expect(t1).toBe(t2)
+
+    store.set(countAtom, 4)
+    expect(t1).toBe(t2)
+    expect(t1).toBe(4000)
+
+    unsub()
+  })
 })

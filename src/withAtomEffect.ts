@@ -98,14 +98,19 @@ export function withAtomEffect<T extends Atom<unknown>>(
     storeHooks.m.add(targetWithEffect, function mountEffect() {
       const atomState = ensureAtomState(store, targetWithEffect)
       const { n } = atomState
-      mountAtom(store, effectAtom)
-      flushCallbacks(store)
-      if (n !== atomState.n) {
-        const unsub = storeHooks.f.add(() => {
-          invalidateDependents(store, targetWithEffect)
-          unsub()
-        })
-      }
+      // Defer effect mount to the next flush `f` so nested mount waves do not replace mounted maps
+      // after inner passes have populated mounted.t, which can strand invalidation edges (#3292).
+      const unsubFlush = storeHooks.f.add(() => {
+        unsubFlush()
+        mountAtom(store, effectAtom)
+        if (n !== atomState.n) {
+          const unsubPost = storeHooks.f.add(() => {
+            unsubPost()
+            invalidateDependents(store, targetWithEffect)
+          })
+        }
+        flushCallbacks(store)
+      })
     })
     storeHooks.u.add(targetWithEffect, function unmountEffect() {
       unmountAtom(store, effectAtom)
