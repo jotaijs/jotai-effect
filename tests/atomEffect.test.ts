@@ -4,8 +4,8 @@ import { act, render } from '@testing-library/react'
 import { Provider, useAtomValue } from 'jotai/react'
 import { atom, createStore } from 'jotai/vanilla'
 import {
-  INTERNAL_getBuildingBlocksRev2 as getBuildingBlocks,
-  INTERNAL_initializeStoreHooksRev2 as initializeStoreHooks,
+  INTERNAL_getBuildingBlocksRev3 as getBuildingBlocks,
+  INTERNAL_initializeStoreHooksRev3 as initializeStoreHooks,
 } from 'jotai/vanilla/internals'
 import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
@@ -1009,27 +1009,27 @@ it('gets the right internals from the store', function test() {
   ) // storeHooks
   expect(buildingBlocks[11].name.endsWith('ensureAtomState')).toBe(true)
   expect(buildingBlocks[11]).toBeInstanceOf(Function)
-  expect(buildingBlocks[11]).toHaveLength(2)
+  expect(buildingBlocks[11]).toHaveLength(3)
   expect(buildingBlocks[12].name.endsWith('flushCallbacks')).toBe(true)
   expect(buildingBlocks[12]).toBeInstanceOf(Function)
-  expect(buildingBlocks[12]).toHaveLength(1)
+  expect(buildingBlocks[12]).toHaveLength(2)
   expect(buildingBlocks[13].name.endsWith('recomputeInvalidatedAtoms')).toBe(
     true
   )
   expect(buildingBlocks[13]).toBeInstanceOf(Function)
-  expect(buildingBlocks[13]).toHaveLength(1)
+  expect(buildingBlocks[13]).toHaveLength(2)
   expect(buildingBlocks[14].name.endsWith('readAtomState')).toBe(true)
   expect(buildingBlocks[14]).toBeInstanceOf(Function)
-  expect(buildingBlocks[14]).toHaveLength(2)
+  expect(buildingBlocks[14]).toHaveLength(3)
   expect(buildingBlocks[15].name.endsWith('invalidateDependents')).toBe(true)
   expect(buildingBlocks[15]).toBeInstanceOf(Function)
-  expect(buildingBlocks[15]).toHaveLength(2)
+  expect(buildingBlocks[15]).toHaveLength(3)
   expect(buildingBlocks[16].name.endsWith('writeAtomState')).toBe(true)
   expect(buildingBlocks[16]).toBeInstanceOf(Function)
-  expect(buildingBlocks[16]).toHaveLength(2)
+  expect(buildingBlocks[16]).toHaveLength(4)
   expect(buildingBlocks[17].name.endsWith('mountDependencies')).toBe(true)
   expect(buildingBlocks[17]).toBeInstanceOf(Function)
-  expect(buildingBlocks[17]).toHaveLength(2)
+  expect(buildingBlocks[17]).toHaveLength(3)
 })
 
 it('should not run the effect when the effectAtom is unmounted', function test() {

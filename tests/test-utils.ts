@@ -3,9 +3,9 @@ import type {
   INTERNAL_Store as Store,
 } from 'jotai/vanilla/internals'
 import {
-  INTERNAL_buildStoreRev2 as buildStore,
-  INTERNAL_getBuildingBlocksRev2 as getBuildingBlocks,
-  INTERNAL_initializeStoreHooksRev2 as initializeStoreHooks,
+  INTERNAL_buildStoreRev3 as buildStore,
+  INTERNAL_getBuildingBlocksRev3 as getBuildingBlocks,
+  INTERNAL_initializeStoreHooksRev3 as initializeStoreHooks,
 } from 'jotai/vanilla/internals'
 
 //
@@ -35,8 +35,8 @@ export function createDebugStore(
 ): DebugStore {
   const buildingBlocks: BuildingBlocks = [...getBuildingBlocks(buildStore())]
   const ensureAtomState = buildingBlocks[11]
-  buildingBlocks[11] = (store, atom) =>
-    Object.assign(ensureAtomState(store, atom), { label: atom.debugLabel })
+  buildingBlocks[11] = (bb, store, atom) =>
+    Object.assign(ensureAtomState(bb, store, atom), { label: atom.debugLabel })
   const debugStore = buildStore(...buildingBlocks) as DebugStore
   debugStore.name = name
   debugStore.state = {
