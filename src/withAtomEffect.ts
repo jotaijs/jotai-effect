@@ -1,7 +1,7 @@
 import type { Atom, WritableAtom } from 'jotai/vanilla'
 import {
-  INTERNAL_getBuildingBlocksRev2 as getBuildingBlocks,
-  INTERNAL_initializeStoreHooksRev2 as initializeStoreHooks,
+  INTERNAL_getBuildingBlocksRev3 as getBuildingBlocks,
+  INTERNAL_initializeStoreHooksRev3 as initializeStoreHooks,
 } from 'jotai/vanilla/internals'
 import type { Effect, GetterWithPeek, SetterWithRecurse } from './atomEffect'
 import { atomEffect } from './atomEffect'
@@ -82,39 +82,43 @@ export function withAtomEffect<T extends Atom<unknown>>(
       })
       effectAtom.debugPrivate = true
     }
-    const effectAtomState = ensureAtomState(store, effectAtom)
-    const targetWithEffectAtomState = ensureAtomState(store, targetWithEffect)
+    const effectAtomState = ensureAtomState(buildingBlocks, store, effectAtom)
+    const targetWithEffectAtomState = ensureAtomState(
+      buildingBlocks,
+      store,
+      targetWithEffect
+    )
 
     storeHooks.c.add(targetWithEffect, function atomChanged() {
       if (isSubscribed) {
         invalidatedAtoms.set(effectAtom, effectAtomState.n)
         effectAtomState.d.set(targetWithEffect, targetWithEffectAtomState.n - 1)
-        readAtomState(store, effectAtom)
-        mountDependencies(store, effectAtom)
+        readAtomState(buildingBlocks, store, effectAtom)
+        mountDependencies(buildingBlocks, store, effectAtom)
         invalidatedAtoms.delete(effectAtom)
         effectAtomState.d.delete(targetWithEffect)
       }
     })
     storeHooks.m.add(targetWithEffect, function mountEffect() {
-      const atomState = ensureAtomState(store, targetWithEffect)
+      const atomState = ensureAtomState(buildingBlocks, store, targetWithEffect)
       const { n } = atomState
       // Defer effect mount to the next flush `f` so nested mount waves do not replace mounted maps
       // after inner passes have populated mounted.t, which can strand invalidation edges (#3292).
       const unsubFlush = storeHooks.f.add(() => {
         unsubFlush()
-        mountAtom(store, effectAtom)
+        mountAtom(buildingBlocks, store, effectAtom)
         if (n !== atomState.n) {
           const unsubPost = storeHooks.f.add(() => {
             unsubPost()
-            invalidateDependents(store, targetWithEffect)
+            invalidateDependents(buildingBlocks, store, targetWithEffect)
           })
         }
-        flushCallbacks(store)
+        flushCallbacks(buildingBlocks, store)
       })
     })
     storeHooks.u.add(targetWithEffect, function unmountEffect() {
-      unmountAtom(store, effectAtom)
-      flushCallbacks(store)
+      unmountAtom(buildingBlocks, store, effectAtom)
+      flushCallbacks(buildingBlocks, store)
     })
     storeHooks.f.add(function flushEffect() {
       inProgress = false
