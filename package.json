@@ -9,7 +9,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/jotaijs/jotai-effect.git"
+    "url": "git+https://github.com/jotaijs/jotai-effect.git"
   },
   "bugs": {
     "url": "https://github.com/jotaijs/jotai-effect/issues"

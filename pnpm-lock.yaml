@@ -57,8 +57,8 @@ importers:
         specifier: ^2.4.2
         version: 2.4.2
       jotai:
-        specifier: https://pkg.csb.dev/pmndrs/jotai/commit/ac38969c/jotai
-        version: https://pkg.csb.dev/pmndrs/jotai/commit/ac38969c/jotai(@types/react@19.2.7)(react@19.2.1)
+        specifier: ^2.20.0
+        version: 2.20.0(@types/react@19.2.7)(react@19.2.1)
       jotai-effect:
         specifier: 'link:'
         version: 'link:'
@@ -1274,9 +1274,8 @@ packages:
     resolution: {integrity: sha512-rg9zJN+G4n2nfJl5MW3BMygZX56zKPNVEYYqq7adpmMh4Jn2QNEwhvQlFy6jPVdcod7txZtKHWnyZiA3a0zP7A==}
     hasBin: true
 
-  jotai@https://pkg.csb.dev/pmndrs/jotai/commit/ac38969c/jotai:
-    resolution: {tarball: https://pkg.csb.dev/pmndrs/jotai/commit/ac38969c/jotai}
-    version: 2.19.1
+  jotai@2.20.0:
+    resolution: {integrity: sha512-b5GAqgmXmXzB4WPaTH26ppk9Sl7AA9WSQX7yfdM+gJ1rFROiWcVbi97gFuN/yVCojOcbcvop2sfLL+fjxW0JVg==}
     engines: {node: '>=12.20.0'}
     peerDependencies:
       '@babel/core': '>=7.0.0'
@@ -3097,7 +3096,7 @@ snapshots:
 
   jiti@2.4.2: {}
 
-  jotai@https://pkg.csb.dev/pmndrs/jotai/commit/ac38969c/jotai(@types/react@19.2.7)(react@19.2.1):
+  jotai@2.20.0(@types/react@19.2.7)(react@19.2.1):
     optionalDependencies:
       '@types/react': 19.2.7
       react: 19.2.1
