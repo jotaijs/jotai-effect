@@ -3,21 +3,20 @@ name: CD
 on:
   push:
     tags:
-      - v*
-
+      - 'v*'
 permissions:
-  id-token: write
   contents: read
+  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
         with:
           version: 10.18.3
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
@@ -25,6 +24,5 @@ jobs:
           cache-dependency-path: '**/pnpm-lock.yaml'
       - run: pnpm install --frozen-lockfile
       - run: npm test
-      - run: npm run compile
-      - run: npm install -g npm@^11.5.1
+      - run: npm run build
       - run: npm publish
