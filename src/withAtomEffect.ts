@@ -1,11 +1,20 @@
 import type { Atom, WritableAtom } from 'jotai/vanilla'
-import {
-  INTERNAL_getBuildingBlocksRev3 as getBuildingBlocks,
-  INTERNAL_initializeStoreHooksRev3 as initializeStoreHooks,
-} from 'jotai/vanilla/internals'
 import type { Effect, GetterWithPeek, SetterWithRecurse } from './atomEffect'
 import { atomEffect } from './atomEffect'
 import { isDev } from './env'
+import {
+  INTERNAL_KEY_ensureAtomState,
+  INTERNAL_KEY_flushCallbacks,
+  INTERNAL_KEY_invalidateDependents,
+  INTERNAL_KEY_invalidatedAtoms,
+  INTERNAL_KEY_mountAtom,
+  INTERNAL_KEY_mountDependencies,
+  INTERNAL_KEY_readAtomState,
+  INTERNAL_KEY_storeHooks,
+  INTERNAL_KEY_unmountAtom,
+  INTERNAL_getBuildingBlocks as getBuildingBlocks,
+  INTERNAL_initializeStoreHooks as initializeStoreHooks,
+} from './jotai-compat'
 
 export function withAtomEffect<T extends Atom<unknown>>(
   targetAtom: T,
@@ -38,15 +47,18 @@ export function withAtomEffect<T extends Atom<unknown>>(
   const targetWithEffect: T & { effect: Effect } = Object.create(proto, desc)
   targetWithEffect.INTERNAL_onInit = (store) => {
     const buildingBlocks = getBuildingBlocks(store)
-    const invalidatedAtoms = buildingBlocks[2]
-    const storeHooks = initializeStoreHooks(buildingBlocks[6])
-    const ensureAtomState = buildingBlocks[11]
-    const flushCallbacks = buildingBlocks[12]
-    const readAtomState = buildingBlocks[14]
-    const invalidateDependents = buildingBlocks[15]
-    const mountDependencies = buildingBlocks[17]
-    const mountAtom = buildingBlocks[18]
-    const unmountAtom = buildingBlocks[19]
+    const invalidatedAtoms = buildingBlocks[INTERNAL_KEY_invalidatedAtoms]
+    const storeHooks = initializeStoreHooks(
+      buildingBlocks[INTERNAL_KEY_storeHooks]
+    )
+    const ensureAtomState = buildingBlocks[INTERNAL_KEY_ensureAtomState]
+    const flushCallbacks = buildingBlocks[INTERNAL_KEY_flushCallbacks]
+    const readAtomState = buildingBlocks[INTERNAL_KEY_readAtomState]
+    const invalidateDependents =
+      buildingBlocks[INTERNAL_KEY_invalidateDependents]
+    const mountDependencies = buildingBlocks[INTERNAL_KEY_mountDependencies]
+    const mountAtom = buildingBlocks[INTERNAL_KEY_mountAtom]
+    const unmountAtom = buildingBlocks[INTERNAL_KEY_unmountAtom]
 
     let inProgress = false
     let isSubscribed = false

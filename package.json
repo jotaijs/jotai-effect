@@ -85,7 +85,7 @@
     "eslint-plugin-prettier": "^5.2.3",
     "happy-dom": "^15.11.7",
     "jiti": "^2.4.2",
-    "jotai": "^2.20.0",
+    "jotai": "3.0.0-alpha.0",
     "jotai-effect": "link:",
     "prettier": "^3.4.2",
     "react": "19.2.1",
@@ -98,7 +98,7 @@
     "vitest": "^3.0.3"
   },
   "peerDependencies": {
-    "jotai": ">=2.20.0"
+    "jotai": ">=2.20.0 || >=3.0.0-alpha.0"
   },
   "engines": {
     "node": ">=12.20.0"

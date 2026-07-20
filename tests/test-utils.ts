@@ -1,31 +1,41 @@
 import type {
+  INTERNAL_AtomStateMap as AtomStateMap,
+  INTERNAL_Callbacks as Callbacks,
+  INTERNAL_ChangedAtoms as ChangedAtoms,
   INTERNAL_BuildingBlocks,
+  INTERNAL_InvalidatedAtoms as InvalidatedAtoms,
+  INTERNAL_MountedMap as MountedMap,
   INTERNAL_Store as Store,
-} from 'jotai/vanilla/internals'
+  INTERNAL_StoreHooks as StoreHooks,
+} from '../src/jotai-compat'
 import {
-  INTERNAL_buildStoreRev3 as buildStore,
-  INTERNAL_getBuildingBlocksRev3 as getBuildingBlocks,
-  INTERNAL_initializeStoreHooksRev3 as initializeStoreHooks,
-} from 'jotai/vanilla/internals'
+  INTERNAL_KEY_atomStateMap,
+  INTERNAL_KEY_changedAtoms,
+  INTERNAL_KEY_ensureAtomState,
+  INTERNAL_KEY_invalidatedAtoms,
+  INTERNAL_KEY_mountCallbacks,
+  INTERNAL_KEY_mountedMap,
+  INTERNAL_KEY_storeHooks,
+  INTERNAL_KEY_unmountCallbacks,
+  INTERNAL_buildStore as buildStore,
+  INTERNAL_getBuildingBlocks as getBuildingBlocks,
+  INTERNAL_initializeStoreHooks as initializeStoreHooks,
+} from '../src/jotai-compat'
 
 //
 // Debug Store
 //
 
-type Mutable<T> = { -readonly [P in keyof T]: T[P] }
-
-type BuildingBlocks = Mutable<INTERNAL_BuildingBlocks>
-
 type DebugStore = Store & {
   name: string
   state: {
-    atomStateMap: BuildingBlocks[0]
-    mountedMap: BuildingBlocks[1]
-    invalidatedAtoms: BuildingBlocks[2]
-    changedAtoms: BuildingBlocks[3]
-    mountCallbacks: BuildingBlocks[4]
-    unmountCallbacks: BuildingBlocks[5]
-    storeHooks: BuildingBlocks[6]
+    atomStateMap: AtomStateMap
+    mountedMap: MountedMap
+    invalidatedAtoms: InvalidatedAtoms
+    changedAtoms: ChangedAtoms
+    mountCallbacks: Callbacks
+    unmountCallbacks: Callbacks
+    storeHooks: Required<StoreHooks>
   }
 }
 
@@ -33,20 +43,25 @@ let storeId = 0
 export function createDebugStore(
   name: string = `debug${storeId++}`
 ): DebugStore {
-  const buildingBlocks: BuildingBlocks = [...getBuildingBlocks(buildStore())]
-  const ensureAtomState = buildingBlocks[11]
-  buildingBlocks[11] = (bb, store, atom) =>
+  const raw = getBuildingBlocks(buildStore())
+  const buildingBlocks = (
+    Array.isArray(raw)
+      ? [...(raw as unknown[])]
+      : { ...(raw as Record<string, unknown>) }
+  ) as INTERNAL_BuildingBlocks
+  const ensureAtomState = buildingBlocks[INTERNAL_KEY_ensureAtomState]
+  buildingBlocks[INTERNAL_KEY_ensureAtomState] = (bb, store, atom) =>
     Object.assign(ensureAtomState(bb, store, atom), { label: atom.debugLabel })
-  const debugStore = buildStore(...buildingBlocks) as DebugStore
+  const debugStore = buildStore(buildingBlocks) as DebugStore
   debugStore.name = name
   debugStore.state = {
-    atomStateMap: buildingBlocks[0],
-    mountedMap: buildingBlocks[1],
-    invalidatedAtoms: buildingBlocks[2],
-    changedAtoms: buildingBlocks[3],
-    mountCallbacks: buildingBlocks[4],
-    unmountCallbacks: buildingBlocks[5],
-    storeHooks: initializeStoreHooks(buildingBlocks[6]),
+    atomStateMap: buildingBlocks[INTERNAL_KEY_atomStateMap],
+    mountedMap: buildingBlocks[INTERNAL_KEY_mountedMap],
+    invalidatedAtoms: buildingBlocks[INTERNAL_KEY_invalidatedAtoms],
+    changedAtoms: buildingBlocks[INTERNAL_KEY_changedAtoms],
+    mountCallbacks: buildingBlocks[INTERNAL_KEY_mountCallbacks],
+    unmountCallbacks: buildingBlocks[INTERNAL_KEY_unmountCallbacks],
+    storeHooks: initializeStoreHooks(buildingBlocks[INTERNAL_KEY_storeHooks]),
   }
   return debugStore
 }

@@ -1,21 +1,30 @@
 import type { Atom, Getter, Setter, WritableAtom } from 'jotai/vanilla'
 import { atom } from 'jotai/vanilla'
+import { isDev } from './env'
 import type {
   INTERNAL_AtomState as AtomState,
   INTERNAL_MountedMap as MountedMap,
+  INTERNAL_Store as Store,
   INTERNAL_StoreHooks as StoreHooks,
-  INTERNAL_buildStoreRev3 as buildStore,
-} from 'jotai/vanilla/internals'
+} from './jotai-compat'
 import {
-  INTERNAL_getBuildingBlocksRev3 as getBuildingBlocks,
+  INTERNAL_KEY_changedAtoms,
+  INTERNAL_KEY_ensureAtomState,
+  INTERNAL_KEY_flushCallbacks,
+  INTERNAL_KEY_invalidateDependents,
+  INTERNAL_KEY_mountDependencies,
+  INTERNAL_KEY_mountedMap,
+  INTERNAL_KEY_readAtomState,
+  INTERNAL_KEY_recomputeInvalidatedAtoms,
+  INTERNAL_KEY_setAtomStateValueOrPromise,
+  INTERNAL_KEY_storeHooks,
+  INTERNAL_KEY_writeAtomState,
+  INTERNAL_getBuildingBlocks as getBuildingBlocks,
   INTERNAL_hasInitialValue as hasInitialValue,
-  INTERNAL_initializeStoreHooksRev3 as initializeStoreHooks,
+  INTERNAL_initializeStoreHooks as initializeStoreHooks,
   INTERNAL_isAtomStateInitialized as isAtomStateInitialized,
   INTERNAL_returnAtomValue as returnAtomValue,
-} from 'jotai/vanilla/internals'
-import { isDev } from './env'
-
-type Store = ReturnType<typeof buildStore>
+} from './jotai-compat'
 
 type AnyAtom = Atom<unknown>
 
@@ -51,17 +60,22 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
 
   effectAtom.INTERNAL_onInit = (store) => {
     const buildingBlocks = getBuildingBlocks(store)
-    const mountedMap = buildingBlocks[1]
-    const changedAtoms = buildingBlocks[3]
-    const storeHooks = initializeStoreHooks(buildingBlocks[6])
-    const ensureAtomState = buildingBlocks[11]
-    const flushCallbacks = buildingBlocks[12]
-    const recomputeInvalidatedAtoms = buildingBlocks[13]
-    const readAtomState = buildingBlocks[14]
-    const invalidateDependents = buildingBlocks[15]
-    const writeAtomState = buildingBlocks[16]
-    const mountDependencies = buildingBlocks[17]
-    const setAtomStateValueOrPromise = buildingBlocks[20]
+    const mountedMap = buildingBlocks[INTERNAL_KEY_mountedMap]
+    const changedAtoms = buildingBlocks[INTERNAL_KEY_changedAtoms]
+    const storeHooks = initializeStoreHooks(
+      buildingBlocks[INTERNAL_KEY_storeHooks]
+    )
+    const ensureAtomState = buildingBlocks[INTERNAL_KEY_ensureAtomState]
+    const flushCallbacks = buildingBlocks[INTERNAL_KEY_flushCallbacks]
+    const recomputeInvalidatedAtoms =
+      buildingBlocks[INTERNAL_KEY_recomputeInvalidatedAtoms]
+    const readAtomState = buildingBlocks[INTERNAL_KEY_readAtomState]
+    const invalidateDependents =
+      buildingBlocks[INTERNAL_KEY_invalidateDependents]
+    const writeAtomState = buildingBlocks[INTERNAL_KEY_writeAtomState]
+    const mountDependencies = buildingBlocks[INTERNAL_KEY_mountDependencies]
+    const setAtomStateValueOrPromise =
+      buildingBlocks[INTERNAL_KEY_setAtomStateValueOrPromise]
 
     const deps = new Set<AnyAtom>()
     let inProgress = 0
