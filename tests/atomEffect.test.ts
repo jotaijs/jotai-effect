@@ -1,14 +1,24 @@
 import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { act, render } from '@testing-library/react'
-import { Provider, useAtomValue } from 'jotai/react'
-import { atom, createStore } from 'jotai/vanilla'
-import {
-  INTERNAL_getBuildingBlocksRev3 as getBuildingBlocks,
-  INTERNAL_initializeStoreHooksRev3 as initializeStoreHooks,
-} from 'jotai/vanilla/internals'
+import { Provider, atom, createStore, useAtomValue } from 'jotai'
 import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
+import type { INTERNAL_BuildingBlocks as BuildingBlocks } from '../src/jotai-compat'
+import {
+  INTERNAL_KEY_changedAtoms,
+  INTERNAL_KEY_ensureAtomState,
+  INTERNAL_KEY_flushCallbacks,
+  INTERNAL_KEY_invalidateDependents,
+  INTERNAL_KEY_mountDependencies,
+  INTERNAL_KEY_mountedMap,
+  INTERNAL_KEY_readAtomState,
+  INTERNAL_KEY_recomputeInvalidatedAtoms,
+  INTERNAL_KEY_storeHooks,
+  INTERNAL_KEY_writeAtomState,
+  INTERNAL_getBuildingBlocks as getBuildingBlocks,
+  INTERNAL_initializeStoreHooks as initializeStoreHooks,
+} from '../src/jotai-compat'
 import type { DeferredPromise } from './test-utils'
 import { createDebugStore, createDeferred } from './test-utils'
 
@@ -991,10 +1001,12 @@ it('should not add dependencies added asynchronously', async function test() {
 
 it('gets the right internals from the store', function test() {
   const buildingBlocks = getBuildingBlocks(createStore())
-  initializeStoreHooks(buildingBlocks[6])
-  expect(buildingBlocks[1]).toBeInstanceOf(WeakMap) // mountedAtoms
-  expect(buildingBlocks[3]).toBeInstanceOf(Set) // changedAtoms
-  expect(buildingBlocks[6]).toSatisfy(
+  initializeStoreHooks(buildingBlocks[INTERNAL_KEY_storeHooks])
+  const getBb = (key: keyof BuildingBlocks) =>
+    buildingBlocks[key] as (...args: unknown[]) => unknown
+  expect(buildingBlocks[INTERNAL_KEY_mountedMap]).toBeInstanceOf(WeakMap) // mountedAtoms
+  expect(buildingBlocks[INTERNAL_KEY_changedAtoms]).toBeInstanceOf(Set) // changedAtoms
+  expect(buildingBlocks[INTERNAL_KEY_storeHooks]).toSatisfy(
     (storeHooks: any) =>
       typeof storeHooks === 'object' &&
       storeHooks !== null &&
@@ -1007,29 +1019,45 @@ it('gets the right internals from the store', function test() {
       'f' in storeHooks &&
       typeof storeHooks.f === 'function'
   ) // storeHooks
-  expect(buildingBlocks[11].name.endsWith('ensureAtomState')).toBe(true)
-  expect(buildingBlocks[11]).toBeInstanceOf(Function)
-  expect(buildingBlocks[11]).toHaveLength(3)
-  expect(buildingBlocks[12].name.endsWith('flushCallbacks')).toBe(true)
-  expect(buildingBlocks[12]).toBeInstanceOf(Function)
-  expect(buildingBlocks[12]).toHaveLength(2)
-  expect(buildingBlocks[13].name.endsWith('recomputeInvalidatedAtoms')).toBe(
+  expect(
+    getBb(INTERNAL_KEY_ensureAtomState).name.endsWith('ensureAtomState')
+  ).toBe(true)
+  expect(getBb(INTERNAL_KEY_ensureAtomState)).toBeInstanceOf(Function)
+  expect(getBb(INTERNAL_KEY_ensureAtomState)).toHaveLength(3)
+  expect(
+    getBb(INTERNAL_KEY_flushCallbacks).name.endsWith('flushCallbacks')
+  ).toBe(true)
+  expect(getBb(INTERNAL_KEY_flushCallbacks)).toBeInstanceOf(Function)
+  expect(getBb(INTERNAL_KEY_flushCallbacks)).toHaveLength(2)
+  expect(
+    getBb(INTERNAL_KEY_recomputeInvalidatedAtoms).name.endsWith(
+      'recomputeInvalidatedAtoms'
+    )
+  ).toBe(true)
+  expect(getBb(INTERNAL_KEY_recomputeInvalidatedAtoms)).toBeInstanceOf(Function)
+  expect(getBb(INTERNAL_KEY_recomputeInvalidatedAtoms)).toHaveLength(2)
+  expect(getBb(INTERNAL_KEY_readAtomState).name.endsWith('readAtomState')).toBe(
     true
   )
-  expect(buildingBlocks[13]).toBeInstanceOf(Function)
-  expect(buildingBlocks[13]).toHaveLength(2)
-  expect(buildingBlocks[14].name.endsWith('readAtomState')).toBe(true)
-  expect(buildingBlocks[14]).toBeInstanceOf(Function)
-  expect(buildingBlocks[14]).toHaveLength(3)
-  expect(buildingBlocks[15].name.endsWith('invalidateDependents')).toBe(true)
-  expect(buildingBlocks[15]).toBeInstanceOf(Function)
-  expect(buildingBlocks[15]).toHaveLength(3)
-  expect(buildingBlocks[16].name.endsWith('writeAtomState')).toBe(true)
-  expect(buildingBlocks[16]).toBeInstanceOf(Function)
-  expect(buildingBlocks[16]).toHaveLength(4)
-  expect(buildingBlocks[17].name.endsWith('mountDependencies')).toBe(true)
-  expect(buildingBlocks[17]).toBeInstanceOf(Function)
-  expect(buildingBlocks[17]).toHaveLength(3)
+  expect(getBb(INTERNAL_KEY_readAtomState)).toBeInstanceOf(Function)
+  expect(getBb(INTERNAL_KEY_readAtomState)).toHaveLength(3)
+  expect(
+    getBb(INTERNAL_KEY_invalidateDependents).name.endsWith(
+      'invalidateDependents'
+    )
+  ).toBe(true)
+  expect(getBb(INTERNAL_KEY_invalidateDependents)).toBeInstanceOf(Function)
+  expect(getBb(INTERNAL_KEY_invalidateDependents)).toHaveLength(3)
+  expect(
+    getBb(INTERNAL_KEY_writeAtomState).name.endsWith('writeAtomState')
+  ).toBe(true)
+  expect(getBb(INTERNAL_KEY_writeAtomState)).toBeInstanceOf(Function)
+  expect(getBb(INTERNAL_KEY_writeAtomState)).toHaveLength(4)
+  expect(
+    getBb(INTERNAL_KEY_mountDependencies).name.endsWith('mountDependencies')
+  ).toBe(true)
+  expect(getBb(INTERNAL_KEY_mountDependencies)).toBeInstanceOf(Function)
+  expect(getBb(INTERNAL_KEY_mountDependencies)).toHaveLength(3)
 })
 
 it('should not run the effect when the effectAtom is unmounted', function test() {
@@ -1070,7 +1098,9 @@ it('should cause change hooks to fire once when effect updates the watched atom'
 
   const store = createDebugStore()
   const buildingBlocks = getBuildingBlocks(store)
-  const storeHooks = initializeStoreHooks(buildingBlocks[6])
+  const storeHooks = initializeStoreHooks(
+    buildingBlocks[INTERNAL_KEY_storeHooks]
+  )
   const countChanged = vi.fn()
   storeHooks.c.add(countAtom, countChanged)
   const effectChanged = vi.fn()
