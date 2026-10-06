@@ -22,26 +22,13 @@ export function withAtomEffect<T extends Atom<unknown>>(
 ): T & { effect: Effect } {
   const proto = Object.getPrototypeOf(targetAtom)
   const desc = Object.getOwnPropertyDescriptors(targetAtom)
-  let depth = 0
-  desc.read.value = function read(get, options) {
-    try {
-      ++depth
-      // handles case when withAtomEffect is nested
-      const context = depth === 1 ? targetAtom : this
-      return targetAtom.read.call(context, get, options)
-    } finally {
-      --depth
-    }
+  delete desc.onMount
+  desc.read.value = function read(get) {
+    return get(targetAtom)
   }
   if (isWritableAtom(targetAtom)) {
-    desc.write!.value = function write(this: T, get, set, ...args) {
-      try {
-        ++depth
-        const context = depth === 1 ? targetAtom : this
-        return targetAtom.write.call(context, get, set, ...args)
-      } finally {
-        --depth
-      }
+    desc.write!.value = function write(_get, set, ...args) {
+      return set(targetAtom, ...args)
     } as (typeof targetAtom)['write']
   }
   const targetWithEffect: T & { effect: Effect } = Object.create(proto, desc)
