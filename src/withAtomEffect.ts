@@ -117,7 +117,8 @@ export function withAtomEffect<T extends Atom<unknown>>(
     })
     storeHooks.u.add(targetWithEffect, function unmountEffect() {
       unmountAtom(buildingBlocks, store, effectAtom)
-      flushCallbacks(buildingBlocks, store)
+      // Let the store flush after recomputing dependents. Flushing here clears
+      // pending changes before the remaining derived atoms can read them.
     })
     storeHooks.f.add(function flushEffect() {
       inProgress = false

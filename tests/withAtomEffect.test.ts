@@ -1,5 +1,5 @@
 import type { Getter } from 'jotai/vanilla'
-import { atom } from 'jotai/vanilla'
+import { atom, createStore } from 'jotai/vanilla'
 import { describe, expect, it, vi } from 'vitest'
 import { atomEffect } from '../src/atomEffect'
 import { withAtomEffect } from '../src/withAtomEffect'
@@ -73,6 +73,43 @@ describe('withAtomEffect', () => {
     unsubscribe()
     expect(cleanupMock).toHaveBeenCalledTimes(1)
   })
+
+  it.each([false, true])(
+    'updates derived subscribers when a conditional effect dependency unmounts (cleanup: %s)',
+    (withCleanup) => {
+      const store = createStore()
+      const cleanup = vi.fn()
+      const source = withAtomEffect(atom('light'), () => {
+        if (withCleanup) {
+          return cleanup
+        }
+      })
+      const enabled = atom(true)
+      const selected = atom((get) => (get(enabled) ? get(source) : 'fixed'))
+      const derived = atom((get) => get(selected))
+      const listener = vi.fn(() => store.get(derived))
+      const unsubscribe = store.sub(derived, listener)
+
+      expect(store.get(derived)).toBe('light')
+
+      store.set(enabled, false)
+
+      expect(store.get(selected)).toBe('fixed')
+      expect(store.get(derived)).toBe('fixed')
+      expect(listener).toHaveBeenCalledTimes(1)
+      expect(listener).toHaveLastReturnedWith('fixed')
+      expect(cleanup).toHaveBeenCalledTimes(withCleanup ? 1 : 0)
+
+      store.set(enabled, true)
+
+      expect(store.get(derived)).toBe('light')
+      expect(listener).toHaveBeenCalledTimes(2)
+      expect(listener).toHaveLastReturnedWith('light')
+
+      unsubscribe()
+      expect(cleanup).toHaveBeenCalledTimes(withCleanup ? 2 : 0)
+    }
+  )
 
   it('does not modify the original atom', function test() {
     const read = () => 0
