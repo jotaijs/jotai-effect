@@ -470,3 +470,289 @@ describe('withAtomEffect', () => {
     unsub()
   })
 })
+
+describe('withAtomEffect composition', () => {
+  it('returns a new atom on each call', function test() {
+    const baseAtom = atom(0)
+    const atomWithEffectOne = withAtomEffect(baseAtom, () => {})
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, () => {})
+    expect(atomWithEffectOne).not.toBe(baseAtom)
+    expect(atomWithEffectTwo).not.toBe(atomWithEffectOne)
+    expect(atomWithEffectTwo).not.toBe(baseAtom)
+  })
+
+  it('owns exactly one effect per returned atom', function test() {
+    const effect1 = () => {}
+    const effect2 = () => {}
+    const atomWithEffectOne = withAtomEffect(atom(0), effect1)
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, effect2)
+    expect(atomWithEffectOne.effect).toBe(effect1)
+    expect(atomWithEffectTwo.effect).toBe(effect2)
+  })
+
+  it('depends on the atom it wraps', function test() {
+    const baseAtom = atom(0)
+    const atomWithEffectOne = withAtomEffect(baseAtom, () => {})
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, () => {})
+    const store = createDebugStore()
+    store.sub(atomWithEffectTwo, () => {})
+    const { mountedMap } = store.state
+    expect(mountedMap.get(atomWithEffectTwo)?.d.has(atomWithEffectOne)).toBe(
+      true
+    )
+    expect(mountedMap.get(atomWithEffectOne)?.d.has(baseAtom)).toBe(true)
+  })
+
+  it('mounting the outer atom mounts the inner atoms and activates their effects', function test() {
+    const baseAtom = atom(0)
+    const effect1 = vi.fn()
+    const effect2 = vi.fn()
+    const atomWithEffectOne = withAtomEffect(baseAtom, effect1)
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, effect2)
+    const store = createDebugStore()
+    store.sub(atomWithEffectTwo, () => {})
+    const { mountedMap } = store.state
+    expect(mountedMap.has(atomWithEffectTwo)).toBe(true)
+    expect(mountedMap.has(atomWithEffectOne)).toBe(true)
+    expect(mountedMap.has(baseAtom)).toBe(true)
+    expect(effect1).toHaveBeenCalledTimes(1)
+    expect(effect2).toHaveBeenCalledTimes(1)
+  })
+
+  it("shares the base atom's value across all wrappers", function test() {
+    const baseAtom = atom(0)
+    const atomWithEffectOne = withAtomEffect(baseAtom, () => {})
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, () => {})
+    const store = createDebugStore()
+    store.sub(atomWithEffectTwo, () => {})
+    store.set(atomWithEffectTwo, 1)
+    expect(store.get(baseAtom)).toBe(1)
+    expect(store.get(atomWithEffectOne)).toBe(1)
+    expect(store.get(atomWithEffectTwo)).toBe(1)
+    store.set(baseAtom, 2)
+    expect(store.get(atomWithEffectOne)).toBe(2)
+    expect(store.get(atomWithEffectTwo)).toBe(2)
+    store.set(atomWithEffectOne, 3)
+    expect(store.get(baseAtom)).toBe(3)
+    expect(store.get(atomWithEffectTwo)).toBe(3)
+  })
+
+  it('keeps onMount on the base atom and calls it once', function test() {
+    const baseAtom = atom(0)
+    const onMount = vi.fn()
+    baseAtom.onMount = onMount
+    const atomWithEffectOne = withAtomEffect(baseAtom, () => {})
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, () => {})
+    const hasOwn = (a: object) =>
+      Object.prototype.hasOwnProperty.call(a, 'onMount')
+    expect(hasOwn(atomWithEffectOne)).toBe(false)
+    expect(hasOwn(atomWithEffectTwo)).toBe(false)
+    const store = createDebugStore()
+    store.sub(atomWithEffectTwo, () => {})
+    expect(onMount).toHaveBeenCalledTimes(1)
+    store.sub(atomWithEffectOne, () => {})
+    expect(onMount).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an effect active exactly while its own atom is mounted', function test() {
+    const baseAtom = atom(0)
+    const effect1 = vi.fn()
+    const cleanup1 = vi.fn()
+    const effect2 = vi.fn()
+    const cleanup2 = vi.fn()
+    const atomWithEffectOne = withAtomEffect(baseAtom, (get) => {
+      get(atomWithEffectOne)
+      effect1()
+      return cleanup1
+    })
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, (get) => {
+      get(atomWithEffectTwo)
+      effect2()
+      return cleanup2
+    })
+    const store = createDebugStore()
+    const unsubOne = store.sub(atomWithEffectOne, () => {})
+    const unsubTwo = store.sub(atomWithEffectTwo, () => {})
+    unsubTwo()
+    expect(cleanup2).toHaveBeenCalledTimes(1)
+    expect(cleanup1).not.toHaveBeenCalled()
+    effect1.mockClear()
+    effect2.mockClear()
+    store.set(baseAtom, 1)
+    expect(effect1).toHaveBeenCalledTimes(1)
+    expect(effect2).not.toHaveBeenCalled()
+    unsubOne()
+    expect(cleanup1).toHaveBeenCalledTimes(2)
+    effect1.mockClear()
+    store.set(baseAtom, 2)
+    expect(effect1).not.toHaveBeenCalled()
+  })
+
+  it('does not run an inner effect twice when the inner and outer atoms are both mounted', function test() {
+    const baseAtom = atom(0)
+    const effect1 = vi.fn()
+    const atomWithEffectOne = withAtomEffect(baseAtom, (get) => {
+      get(atomWithEffectOne)
+      effect1()
+    })
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, () => {})
+    const store = createDebugStore()
+    store.sub(atomWithEffectOne, () => {})
+    store.sub(atomWithEffectTwo, () => {})
+    expect(effect1).toHaveBeenCalledTimes(1)
+    store.set(baseAtom, 1)
+    expect(effect1).toHaveBeenCalledTimes(2)
+  })
+
+  it('tracks dependencies separately for each effect', function test() {
+    const depAAtom = atom(0)
+    const depBAtom = atom(0)
+    const effect1 = vi.fn()
+    const effect2 = vi.fn()
+    const atomWithEffectOne = withAtomEffect(atom(0), (get) => {
+      get(depAAtom)
+      effect1()
+    })
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, (get) => {
+      get(depBAtom)
+      effect2()
+    })
+    const store = createDebugStore()
+    store.sub(atomWithEffectTwo, () => {})
+    store.set(depAAtom, 1)
+    expect(effect1).toHaveBeenCalledTimes(2)
+    expect(effect2).toHaveBeenCalledTimes(1)
+    store.set(depBAtom, 1)
+    expect(effect1).toHaveBeenCalledTimes(2)
+    expect(effect2).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a shared inner effect active until the last branch unmounts', function test() {
+    const baseAtom = atom(0)
+    const effect1 = vi.fn()
+    const cleanup1 = vi.fn()
+    const cleanup2 = vi.fn()
+    const effect3 = vi.fn()
+    const innerAtom = withAtomEffect(baseAtom, (get) => {
+      get(innerAtom)
+      effect1()
+      return cleanup1
+    })
+    const leftAtom = withAtomEffect(innerAtom, () => cleanup2)
+    const rightAtom = withAtomEffect(innerAtom, (get) => {
+      get(rightAtom)
+      effect3()
+    })
+    const store = createDebugStore()
+    const unsubLeft = store.sub(leftAtom, () => {})
+    const unsubRight = store.sub(rightAtom, () => {})
+    expect(effect1).toHaveBeenCalledTimes(1)
+    unsubLeft()
+    expect(cleanup2).toHaveBeenCalledTimes(1)
+    expect(cleanup1).not.toHaveBeenCalled()
+    store.set(baseAtom, 1)
+    expect(effect1).toHaveBeenCalledTimes(2)
+    expect(effect3).toHaveBeenCalledTimes(2)
+    unsubRight()
+    expect(cleanup1).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs only its own effect plus the effects of atoms it wraps', function test() {
+    const baseAtom = atom(0)
+    const effect1 = vi.fn()
+    const effect2 = vi.fn()
+    const effect3 = vi.fn()
+    const innerAtom = withAtomEffect(baseAtom, (get) => {
+      get(innerAtom)
+      effect1()
+    })
+    withAtomEffect(innerAtom, effect2)
+    const rightAtom = withAtomEffect(innerAtom, (get) => {
+      get(rightAtom)
+      effect3()
+    })
+    const store = createDebugStore()
+    store.sub(rightAtom, () => {})
+    expect(effect1).toHaveBeenCalledTimes(1)
+    expect(effect3).toHaveBeenCalledTimes(1)
+    expect(effect2).not.toHaveBeenCalled()
+    store.set(baseAtom, 1)
+    expect(effect1).toHaveBeenCalledTimes(2)
+    expect(effect3).toHaveBeenCalledTimes(2)
+    expect(effect2).not.toHaveBeenCalled()
+  })
+
+  it('runs effects innermost first in wrapping order', function test() {
+    const order: string[] = []
+    const baseAtom = atom(0)
+    const atomWithEffectOne = withAtomEffect(baseAtom, (get) => {
+      get(atomWithEffectOne)
+      order.push('1')
+    })
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, (get) => {
+      get(atomWithEffectTwo)
+      order.push('2')
+    })
+    const atomWithEffectThree = withAtomEffect(atomWithEffectTwo, (get) => {
+      get(atomWithEffectThree)
+      order.push('3')
+    })
+    const store = createDebugStore()
+    store.sub(atomWithEffectThree, () => {})
+    expect(order.join('')).toBe('123')
+    order.length = 0
+    store.set(baseAtom, 1)
+    expect(order.join('')).toBe('123')
+  })
+
+  it("replacing .effect replaces only that atom's effect on its next run", function test() {
+    const baseAtom = atom(0)
+    const effect1 = vi.fn((get: Getter) => {
+      get(atomWithEffectOne)
+    })
+    const effect1b = vi.fn((get: Getter) => {
+      get(atomWithEffectOne)
+    })
+    const effect2 = vi.fn((get: Getter) => {
+      get(atomWithEffectTwo)
+    })
+    const atomWithEffectOne = withAtomEffect(baseAtom, effect1)
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, effect2)
+    const store = createDebugStore()
+    store.sub(atomWithEffectTwo, () => {})
+    effect1.mockClear()
+    effect2.mockClear()
+    atomWithEffectOne.effect = effect1b
+    expect(effect1b).not.toHaveBeenCalled()
+    store.set(baseAtom, 1)
+    expect(effect1).not.toHaveBeenCalled()
+    expect(effect1b).toHaveBeenCalledTimes(1)
+    expect(effect2).toHaveBeenCalledTimes(1)
+    expect(atomWithEffectTwo.effect).toBe(effect2)
+  })
+
+  it('does not expose the inner atom or its effect as a property', function test() {
+    const effect1 = () => {}
+    const atomWithEffectOne = withAtomEffect(atom(0), effect1)
+    const atomWithEffectTwo = withAtomEffect(atomWithEffectOne, () => {})
+    const values = Reflect.ownKeys(atomWithEffectTwo).map((key) =>
+      Reflect.get(atomWithEffectTwo, key)
+    )
+    expect(values).not.toContain(atomWithEffectOne)
+    expect(values).not.toContain(effect1)
+  })
+
+  it('runs every nested effect when only the outer atom is subscribed (#84)', function test() {
+    const effect1 = vi.fn()
+    const effect2 = vi.fn()
+    const atom1 = atom(0)
+    const atomWithEffects = withAtomEffect(
+      withAtomEffect(atom1, effect1),
+      effect2
+    )
+    const store = createDebugStore()
+    store.sub(atomWithEffects, () => {})
+    expect(effect1).toHaveBeenCalledTimes(1)
+    expect(effect2).toHaveBeenCalledTimes(1)
+  })
+})
