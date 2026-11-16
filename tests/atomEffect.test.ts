@@ -1080,6 +1080,34 @@ it('should not run the effect when the effectAtom is unmounted', function test()
   expect(runCount).toBe(0)
 })
 
+it('should update dependents when cleanup sets an atom on unmount', function test() {
+  const valueAtom = atom(0)
+  valueAtom.debugLabel = 'valueAtom'
+
+  const derivedAtom = atom((get) => get(valueAtom))
+  derivedAtom.debugLabel = 'derivedAtom'
+
+  const seen: number[] = []
+  const watcherAtom = atomEffect((get) => {
+    seen.push(get(valueAtom))
+  })
+  watcherAtom.debugLabel = 'watcherAtom'
+
+  const writerAtom = atomEffect((_, set) => () => {
+    set(valueAtom, 1)
+  })
+  writerAtom.debugLabel = 'writerAtom'
+
+  const store = createDebugStore()
+  const derivedSub = vi.fn()
+  store.sub(derivedAtom, derivedSub)
+  store.sub(watcherAtom, () => {})
+  const unsub = store.sub(writerAtom, () => {})
+  unsub()
+  expect(seen).toEqual([0, 1])
+  expect(derivedSub).toHaveBeenCalledTimes(1)
+})
+
 it('should cause change hooks to fire once when effect updates the watched atom', function test() {
   const countAtom = atom(0)
   countAtom.debugLabel = 'watchedAtom'
