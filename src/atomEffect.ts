@@ -84,6 +84,11 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
     let fromCleanup = false
     let runCleanup: (() => void) | undefined
 
+    function runUnmountCleanup() {
+      runCleanup?.()
+      recomputeInvalidatedAtoms(buildingBlocks, store)
+    }
+
     function runEffect() {
       if (inProgress) {
         return
@@ -231,7 +236,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
       // mounted
       atomEffectChannel.add(runEffect)
       if (runCleanup) {
-        atomEffectChannel.delete(runCleanup)
+        atomEffectChannel.delete(runUnmountCleanup)
       }
     })
 
@@ -239,7 +244,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
       // unmounted
       atomEffectChannel.delete(runEffect)
       if (runCleanup) {
-        atomEffectChannel.add(runCleanup)
+        atomEffectChannel.add(runUnmountCleanup)
       }
     })
 
