@@ -1,6 +1,6 @@
 import type { Atom, WritableAtom } from 'jotai/vanilla'
 import type { Effect, GetterWithPeek, SetterWithRecurse } from './atomEffect'
-import { atomEffect } from './atomEffect'
+import { atomEffect, deleteDependency, setDependency } from './atomEffect'
 import { isDev } from './env'
 import {
   INTERNAL_KEY_ensureAtomState,
@@ -91,11 +91,15 @@ export function withAtomEffect<T extends Atom<unknown>>(
     storeHooks.c.add(targetWithEffect, function atomChanged() {
       if (isSubscribed) {
         invalidatedAtoms.set(effectAtom, effectAtomState.n)
-        effectAtomState.d.set(targetWithEffect, targetWithEffectAtomState.n - 1)
+        setDependency(
+          effectAtomState,
+          targetWithEffect,
+          targetWithEffectAtomState.n - 1
+        )
         readAtomState(buildingBlocks, store, effectAtom)
         mountDependencies(buildingBlocks, store, effectAtom)
         invalidatedAtoms.delete(effectAtom)
-        effectAtomState.d.delete(targetWithEffect)
+        deleteDependency(effectAtomState, targetWithEffect)
       }
     })
     storeHooks.m.add(targetWithEffect, function mountEffect() {

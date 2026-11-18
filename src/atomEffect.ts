@@ -117,7 +117,7 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
         try {
           return returnAtomValue(aState)
         } finally {
-          atomState.d.set(a, aState.n)
+          setDependency(atomState, a, aState.n)
           mountedMap.get(a)?.t.add(effectAtom)
           if (isSync) {
             deps.add(a)
@@ -211,7 +211,8 @@ export function atomEffect(effect: Effect): Atom<void> & { effect: Effect } {
       } finally {
         isSync = false
         deps.forEach((depAtom) => {
-          atomState.d.set(
+          setDependency(
+            atomState,
             depAtom,
             ensureAtomState(buildingBlocks, store, depAtom).n
           )
@@ -291,4 +292,24 @@ function ensureAtomEffectChannel(
     })
   }
   return atomEffectChannel
+}
+
+export function setDependency(
+  atomState: AtomState,
+  dependency: AnyAtom,
+  epoch: number
+): void {
+  if (!atomState.d.has(dependency) && typeof atomState.k === 'number') {
+    ++atomState.k
+  }
+  atomState.d.set(dependency, epoch)
+}
+
+export function deleteDependency(
+  atomState: AtomState,
+  dependency: AnyAtom
+): void {
+  if (atomState.d.delete(dependency) && typeof atomState.k === 'number') {
+    ++atomState.k
+  }
 }
